@@ -1,0 +1,45 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+export async function GET() {
+  try {
+    const categories = await prisma.category.findMany({
+      orderBy: { sortOrder: "asc" },
+      include: {
+        tasks: {
+          orderBy: { sortOrder: "asc" },
+          include: {
+            subTasks: { orderBy: { sortOrder: "asc" } },
+          },
+        },
+      },
+    });
+
+    const data = categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      sortOrder: c.sortOrder,
+      tasks: c.tasks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        categoryId: t.categoryId,
+        requiredSystemName: t.requiredSystemName,
+        sortOrder: t.sortOrder,
+        subTasks: t.subTasks.map((s) => ({
+          id: s.id,
+          title: s.title,
+          url: s.url,
+          sortOrder: s.sortOrder,
+        })),
+      })),
+    }));
+
+    return NextResponse.json(data);
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json(
+      { error: "Kunde inte hämta kategorier" },
+      { status: 500 }
+    );
+  }
+}

@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --otic-primary: #006B4A;
+  --otic-primary-dark: #004d36;
+  --otic-surface: #f0f4ef;
+  --status-red: #DC2626;
+  --status-yellow: #EAB308;
+  --status-green: #16A34A;
+}
+
+body {
+  @apply bg-otic-surface text-gray-900 antialiased;
+}
+
+/* Stora, lättklickbara kort på mobil */
+@layer components {
+  .card-touch {
+    @apply min-h-[44px] touch-manipulation rounded-xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md active:scale-[0.99];
+  }
+}

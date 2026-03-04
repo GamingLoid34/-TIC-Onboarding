@@ -1,0 +1,136 @@
+// Östgötatrafiken Ötic – Onboarding för trafikledningscentral
+// Prisma-schema med PostgreSQL (Supabase / Vercel)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Fyra roller: ADMIN, ARBETSLEDARE, MENTOR, NYANSTALLD
+enum Role {
+  ADMIN
+  ARBETSLEDARE
+  MENTOR
+  NYANSTALLD
+}
+
+// Status för IT-system: Ej beställd -> Beställd -> Klar
+enum SystemStatus {
+  PENDING   // Ej beställd
+  ORDERED   // Beställd
+  READY     // Klar
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  systemChecklists   SystemChecklist[]  @relation("NyanstalldSystems")
+  visadProgresses    TaskProgress[]    @relation("VisadByMentor")
+  taskProgresses     TaskProgress[]    @relation("NyanstalldProgress")
+  subTaskProgresses  SubTaskProgress[]  @relation("NyanstalldSubTaskProgress")
+}
+
+// IT-system per nyanställd (OCA, TIMS, Östgötatrafiken-konto, Ace, Axentia, Ödoc, TRV, Teleopti)
+model SystemChecklist {
+  id           String       @id @default(cuid())
+  systemName   String
+  status       SystemStatus @default(PENDING)
+  nyanstalldId String
+  nyanstalld   User         @relation("NyanstalldSystems", fields: [nyanstalldId], references: [id], onDelete: Cascade)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([nyanstalldId, systemName])
+  @@index([nyanstalldId])
+}
+
+// Kategorier för utbildningsmoment
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tasks Task[]
+}
+
+// Utbildningsmoment (Tasks) – smörgåsbords-utbildning
+model Task {
+  id                 String    @id @default(cuid())
+  title              String
+  description        String?
+  categoryId         String
+  category           Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  requiredSystemName String?
+  sortOrder          Int        @default(0)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  progress  TaskProgress[]
+  subTasks  SubTask[]       @relation("TaskSubTasks")
+}
+
+// Delmoment under en Task (valfri SharePoint-länk)
+model SubTask {
+  id        String   @id @default(cuid())
+  title     String
+  url       String?
+  taskId    String
+  task      Task     @relation("TaskSubTasks", fields: [taskId], references: [id], onDelete: Cascade)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  progress SubTaskProgress[]
+}
+
+// Tvåstegsverifiering: Visad + Kan + anteckningar (Task)
+model TaskProgress {
+  id               String    @id @default(cuid())
+  taskId           String
+  task             Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  nyanstalldId     String
+  nyanstalld       User      @relation("NyanstalldProgress", fields: [nyanstalldId], references: [id], onDelete: Cascade)
+  isVisad          Boolean   @default(false)
+  visadAt          DateTime?
+  visadByMentorId  String?
+  visadByMentor    User?     @relation("VisadByMentor", fields: [visadByMentorId], references: [id], onDelete: SetNull)
+  isKan            Boolean   @default(false)
+  kanAt            DateTime?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([taskId, nyanstalldId])
+  @@index([nyanstalldId])
+  @@index([taskId])
+}
+
+// Tvåstegsverifiering per Delmoment (SubTask) och nyanställd
+model SubTaskProgress {
+  id           String   @id @default(cuid())
+  subTaskId    String
+  subTask      SubTask  @relation(fields: [subTaskId], references: [id], onDelete: Cascade)
+  nyanstalldId String
+  nyanstalld   User     @relation("NyanstalldSubTaskProgress", fields: [nyanstalldId], references: [id], onDelete: Cascade)
+  isVisad      Boolean  @default(false)
+  isKan        Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([subTaskId, nyanstalldId])
+  @@index([subTaskId])
+  @@index([nyanstalldId])
+}
