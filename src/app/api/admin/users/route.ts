@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET() {
   try {
@@ -19,11 +20,19 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, email, role } = body;
+    const { name, email, role, password } = body;
+    const emailNorm = String(email).trim().toLowerCase();
 
-    if (!name?.trim() || !email?.trim() || !role) {
+    if (!name?.trim() || !emailNorm || !role) {
       return NextResponse.json(
-        { error: "name, email och role krävs" },
+        { error: "Namn, e-post och roll krävs" },
+        { status: 400 }
+      );
+    }
+
+    if (!password || String(password).length < 6) {
+      return NextResponse.json(
+        { error: "Lösenord krävs (minst 6 tecken)" },
         { status: 400 }
       );
     }
@@ -37,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     const existing = await prisma.user.findUnique({
-      where: { email: String(email).trim().toLowerCase() },
+      where: { email: emailNorm },
     });
     if (existing) {
       return NextResponse.json(
@@ -46,10 +55,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const supabase = createAdminClient();
+    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+      email: emailNorm,
+      password: String(password),
+      email_confirm: true,
+      user_metadata: { name: String(name).trim() },
+    });
+
+    if (authError) {
+      if (authError.message.includes("already been registered")) {
+        return NextResponse.json(
+          { error: "Den e-postadressen är redan registrerad i inloggningen." },
+          { status: 409 }
+        );
+      }
+      console.error(authError);
+      return NextResponse.json(
+        { error: authError.message || "Kunde inte skapa inloggning" },
+        { status: 400 }
+      );
+    }
+
     const user = await prisma.user.create({
       data: {
+        id: authUser.user.id,
         name: String(name).trim(),
-        email: String(email).trim().toLowerCase(),
+        email: emailNorm,
         role: String(role) as "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD",
       },
     });

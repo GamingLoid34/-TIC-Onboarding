@@ -116,23 +116,23 @@ export default function DashboardPage() {
   const maxTasks = nyanstallda.length * totalTasks || 1;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+        <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl lg:text-3xl">
           Dashboard
         </h1>
-        <p className="mt-1 text-gray-600">
+        <p className="mt-1 text-sm text-gray-600 sm:text-base">
           Översikt över onboarding och IT-beställningar för nyanställda
         </p>
       </div>
 
       {/* Sammanfattning – total framgång */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+      <section className="card-section">
+        <h2 className="mb-4 text-base font-semibold text-gray-900 sm:text-lg">
           Övergripande framsteg
         </h2>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-xl bg-otic-surface p-4">
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+          <div className="rounded-xl bg-gray-50/80 p-4 sm:p-5">
             <p className="text-sm font-medium text-gray-600">
               Totalt antal moment (Genomgången)
             </p>
@@ -146,7 +146,7 @@ export default function DashboardPage() {
               showPercent={false}
             />
           </div>
-          <div className="rounded-xl bg-otic-surface p-4">
+          <div className="rounded-xl bg-gray-50/80 p-4 sm:p-5">
             <p className="text-sm font-medium text-gray-600">
               Totalt antal moment (Behärskar)
             </p>
@@ -160,7 +160,7 @@ export default function DashboardPage() {
               showPercent={false}
             />
           </div>
-          <div className="rounded-xl bg-otic-surface p-4 sm:col-span-2 lg:col-span-1">
+          <div className="rounded-xl bg-gray-50/80 p-4 sm:col-span-2 sm:p-5 lg:col-span-1">
             <p className="text-sm font-medium text-gray-600">Nyanställda</p>
             <p className="mt-1 text-2xl font-bold text-otic-primary">
               {nyanstallda.length}
@@ -171,8 +171,8 @@ export default function DashboardPage() {
       </section>
 
       {/* Per nyanställd: progress + IT-system */}
-      <section className="space-y-6">
-        <h2 className="text-lg font-semibold text-gray-900">
+      <section className="space-y-4 sm:space-y-6">
+        <h2 className="text-base font-semibold text-gray-900 sm:text-lg">
           Nyanställda – framsteg och IT-status
         </h2>
         {nyanstallda.length === 0 ? (
@@ -180,7 +180,7 @@ export default function DashboardPage() {
             Inga nyanställda i databasen. Kör <code className="rounded bg-gray-100 px-1">npm run db:seed</code> för att lägga in testdata.
           </p>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
             {nyanstallda.map((person) => {
               const visadPercent =
                 person.totalTasks > 0
@@ -216,11 +216,11 @@ export default function DashboardPage() {
                         label="Behärskar"
                       />
                     </div>
-                    <div className="mt-3 flex gap-2">
-                      <span className="rounded-full bg-otic-primary/15 px-2.5 py-0.5 text-xs font-medium text-otic-primary">
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-otic-primary/15 px-2.5 py-1 text-xs font-medium text-otic-primary">
                         {visadPercent}% Genomgången
                       </span>
-                      <span className="rounded-full bg-otic-secondary/15 px-2.5 py-0.5 text-xs font-medium text-otic-secondary">
+                      <span className="rounded-full bg-otic-accent/20 px-2.5 py-1 text-xs font-medium text-otic-primary">
                         {kanPercent}% Behärskar
                       </span>
                     </div>
@@ -251,11 +251,11 @@ export default function DashboardPage() {
       </section>
 
       {/* Förklaring av färgkoder */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-3 text-lg font-semibold text-gray-900">
+      <section className="card-section">
+        <h2 className="mb-3 text-base font-semibold text-gray-900 sm:text-lg">
           Status för IT-system
         </h2>
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-4 sm:gap-6">
           <div className="flex items-center gap-2">
             <span className="inline-flex h-3 w-3 rounded-full bg-status-red" />
             <span className="text-sm text-gray-700">Ej beställd</span>

@@ -174,22 +174,22 @@ export default function MentorPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+        <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl lg:text-3xl">
           Mentorvy
         </h1>
-        <p className="mt-1 text-gray-600">
+        <p className="mt-1 text-sm text-gray-600 sm:text-base">
           Checklistor, Genomgången/Behärskar och anteckningar per nyanställd
         </p>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-xs text-gray-500 sm:text-sm">
           {allTasks.length} moment i {categories.length} kategorier. Använd filtret för att begränsa vy.
         </p>
       </div>
 
       {/* Välj nyanställd */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
+      <section className="card-section">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500 sm:text-sm">
           Nyanställd
         </h2>
         {nyanstallda.length === 0 ? (
@@ -201,7 +201,7 @@ export default function MentorPage() {
                 key={n.id}
                 type="button"
                 onClick={() => setSelectedNyanstalldId(n.id)}
-                className={`min-h-[44px] rounded-xl border-2 px-4 py-2.5 text-left font-medium transition touch-manipulation sm:min-h-0 ${
+                className={`min-h-[48px] rounded-xl border-2 px-4 py-3 text-left text-sm font-medium transition touch-manipulation sm:min-h-0 sm:py-2.5 ${
                   selectedNyanstalldId === n.id
                     ? "border-otic-primary bg-otic-primary/10 text-otic-primary"
                     : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
@@ -215,8 +215,8 @@ export default function MentorPage() {
       </section>
 
       {selectedNyanstalld && (
-        <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
+        <section className="card-section">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500 sm:text-sm">
             IT-system (status)
           </h2>
           <div className="flex flex-wrap gap-2">
@@ -234,13 +234,13 @@ export default function MentorPage() {
       )}
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 sm:text-sm">
           Filtrera moment
         </h2>
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="w-full min-h-[44px] max-w-sm rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-gray-700 shadow-sm focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
+          className="w-full min-h-[48px] max-w-sm rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-700 shadow-sm focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20 sm:py-2.5"
         >
           <option value="">Alla kategorier</option>
           {categories.map((c) => (
@@ -255,8 +255,8 @@ export default function MentorPage() {
         <p className="text-sm text-gray-500">Hämtar checklista…</p>
       )}
 
-      <section className="space-y-6">
-        <h2 className="text-lg font-semibold text-gray-900">Moment</h2>
+      <section className="space-y-4 sm:space-y-6">
+        <h2 className="text-base font-semibold text-gray-900 sm:text-lg">Moment</h2>
         {tasksByCategory.length === 0 ? (
           <p className="text-gray-500">Inga moment. Kör db:seed för att lägga in uppgifter.</p>
         ) : (
@@ -311,21 +311,21 @@ export default function MentorPage() {
                         )}
 
                         <div className="mt-4 flex flex-wrap gap-6">
-                          <label className="flex min-h-[44px] cursor-pointer items-center gap-3 touch-manipulation">
+                          <label className="flex min-h-[48px] cursor-pointer items-center gap-3 touch-manipulation">
                             <input
                               type="checkbox"
                               checked={prog.isVisad}
                               onChange={(e) => setTaskProgress(task.id, { isVisad: e.target.checked })}
-                              className="h-5 w-5 rounded border-gray-300 text-otic-primary focus:ring-otic-primary"
+                              className="h-5 w-5 shrink-0 rounded border-gray-300 text-otic-primary focus:ring-otic-primary"
                             />
                             <span className="font-medium text-gray-700">Genomgången</span>
                           </label>
-                          <label className="flex min-h-[44px] cursor-pointer items-center gap-3 touch-manipulation">
+                          <label className="flex min-h-[48px] cursor-pointer items-center gap-3 touch-manipulation">
                             <input
                               type="checkbox"
                               checked={prog.isKan}
                               onChange={(e) => setTaskProgress(task.id, { isKan: e.target.checked })}
-                              className="h-5 w-5 rounded border-gray-300 text-otic-primary focus:ring-otic-primary"
+                              className="h-5 w-5 shrink-0 rounded border-gray-300 text-otic-primary focus:ring-otic-primary"
                             />
                             <span className="font-medium text-gray-700">Behärskar</span>
                           </label>

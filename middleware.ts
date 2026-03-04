@@ -34,6 +34,17 @@ export async function middleware(request: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
+  if (request.nextUrl.pathname === "/") {
+    if (session) {
+      const redirectRes = NextResponse.redirect(new URL("/dashboard", request.url));
+      response.cookies.getAll().forEach((c) => redirectRes.cookies.set(c.name, c.value));
+      return redirectRes;
+    }
+    const redirectRes = NextResponse.redirect(new URL("/login", request.url));
+    response.cookies.getAll().forEach((c) => redirectRes.cookies.set(c.name, c.value));
+    return redirectRes;
+  }
+
   if (request.nextUrl.pathname === "/login") {
     if (session) {
       const redirectRes = NextResponse.redirect(new URL("/dashboard", request.url));
@@ -55,5 +66,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/dashboard", "/dashboard/:path*", "/mentor", "/mentor/:path*", "/login", "/auth/callback"],
+  matcher: ["/", "/admin/:path*", "/dashboard", "/dashboard/:path*", "/mentor", "/mentor/:path*", "/login", "/auth/callback"],
 };

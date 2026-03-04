@@ -226,12 +226,12 @@ export default function AdminTasksPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+        <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl lg:text-3xl">
           Admin – Uppgifter och delmoment
         </h1>
-        <p className="mt-1 text-gray-600">
+        <p className="mt-1 text-sm text-gray-600 sm:text-base">
           Skapa, redigera och radera uppgifter (Tasks) och delmoment (SubTasks).
         </p>
       </div>
@@ -250,18 +250,16 @@ export default function AdminTasksPage() {
       )}
 
       {/* Formulär: Ny uppgift */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">Lägg till uppgift</h2>
+      <section className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm sm:p-6">
+        <h2 className="mb-4 text-base font-semibold text-gray-900 sm:text-lg">Lägg till uppgift</h2>
         <form onSubmit={handleCreateTask} className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
-          <div className="min-w-0 flex-1 sm:max-w-xs">
-            <label htmlFor="new-task-category" className="mb-1 block text-sm font-medium text-gray-700">
-              Kategori
-            </label>
+          <div className="min-w-0 w-full flex-1 sm:max-w-xs">
+            <label htmlFor="new-task-category" className="mb-1 block text-sm font-medium text-gray-700">Kategori</label>
             <select
               id="new-task-category"
               value={newTaskCategoryId}
               onChange={(e) => setNewTaskCategoryId(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
+              className="w-full min-h-[48px] rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
               required
             >
               {categories.map((c) => (
@@ -271,38 +269,34 @@ export default function AdminTasksPage() {
               ))}
             </select>
           </div>
-          <div className="min-w-0 flex-1 sm:max-w-sm">
-            <label htmlFor="new-task-title" className="mb-1 block text-sm font-medium text-gray-700">
-              Titel *
-            </label>
+          <div className="min-w-0 w-full flex-1 sm:max-w-sm">
+            <label htmlFor="new-task-title" className="mb-1 block text-sm font-medium text-gray-700">Titel *</label>
             <input
               id="new-task-title"
               type="text"
               value={newTaskTitle}
               onChange={(e) => setNewTaskTitle(e.target.value)}
               placeholder="Titel på uppgiften"
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
+              className="w-full min-h-[48px] rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
               required
             />
           </div>
-          <div className="min-w-0 flex-1 sm:max-w-xs">
-            <label htmlFor="new-task-system" className="mb-1 block text-sm font-medium text-gray-700">
-              Kräver system (valfritt)
-            </label>
+          <div className="min-w-0 w-full flex-1 sm:max-w-xs">
+            <label htmlFor="new-task-system" className="mb-1 block text-sm font-medium text-gray-700">Kräver system (valfritt)</label>
             <input
               id="new-task-system"
               type="text"
               value={newTaskSystemName}
               onChange={(e) => setNewTaskSystemName(e.target.value)}
               placeholder="t.ex. TIMS, OCA"
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
+              className="w-full min-h-[48px] rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
             />
           </div>
           <div className="flex gap-2">
             <button
               type="submit"
               disabled={submittingTask || !newTaskTitle.trim()}
-              className="rounded-lg bg-otic-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-otic-primaryDark disabled:opacity-50"
+              className="min-h-[48px] rounded-xl bg-otic-primary px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-otic-primaryDark focus:outline-none focus:ring-2 focus:ring-otic-primary focus:ring-offset-2 disabled:opacity-50"
             >
               {submittingTask ? "Sparar…" : "Lägg till uppgift"}
             </button>

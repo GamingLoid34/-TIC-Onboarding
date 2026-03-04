@@ -46,13 +46,13 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-        <h1 className="text-xl font-bold text-gray-900">Logga in</h1>
+    <div className="flex min-h-[60vh] flex-col items-center justify-center py-8">
+      <div className="w-full max-w-sm rounded-2xl border border-gray-200/80 bg-white p-6 shadow-md sm:p-8">
+        <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">Logga in</h1>
         <p className="mt-1 text-sm text-gray-500">Ötic Onboarding – Östgötatrafiken</p>
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
               {error}
             </div>
           )}
@@ -67,7 +67,7 @@ function LoginForm() {
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
               required
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
+              className="w-full min-h-[48px] rounded-xl border border-gray-300 bg-white px-4 py-3 text-base transition focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
             />
           </div>
           <div>
@@ -81,20 +81,19 @@ function LoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
               required
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
+              className="w-full min-h-[48px] rounded-xl border border-gray-300 bg-white px-4 py-3 text-base transition focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-otic-primary py-2.5 text-sm font-semibold text-white hover:bg-otic-primaryDark disabled:opacity-50"
+            className="w-full min-h-[48px] rounded-xl bg-otic-primary py-3 text-base font-semibold text-white shadow-sm transition hover:bg-otic-primaryDark focus:outline-none focus:ring-2 focus:ring-otic-primary focus:ring-offset-2 disabled:opacity-50"
           >
             {loading ? "Loggar in…" : "Logga in"}
           </button>
         </form>
         <p className="mt-4 text-center text-xs text-gray-500">
-          Skapa användare under Admin → Användare. Skapa samma e-post i Supabase →
-          Authentication → Users och sätt lösenord för inloggning.
+          E-post och lösenord sätts av en administratör under Admin → Användare.
         </p>
       </div>
     </div>
