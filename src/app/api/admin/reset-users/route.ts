@@ -34,23 +34,33 @@ export async function POST(request: NextRequest) {
       // ingen body eller ogiltig JSON
     }
 
-    // 1) Rensa app-databasen i rätt ordning (FK)
-    try {
-      await prisma.subTaskProgress.deleteMany({});
-      await prisma.taskProgress.deleteMany({});
-      await prisma.systemChecklist.deleteMany({});
-      await prisma.userRole.deleteMany({});
-      await prisma.user.deleteMany({});
-    } catch (e) {
-      console.error(e);
-      return NextResponse.json(
-        {
-          error:
-            "Kunde inte rensa användardata i databasen. Kontrollera att Prisma är uppdaterat (db push). Detalj: " +
-            (e instanceof Error ? e.message : "Okänt fel"),
-        },
-        { status: 500 }
-      );
+    // 1) Rensa app-databasen i rätt ordning (FK). Hoppa över tabeller som saknas (t.ex. UserRole om patchen inte körts).
+    const steps = [
+      () => prisma.subTaskProgress.deleteMany({}),
+      () => prisma.taskProgress.deleteMany({}),
+      () => prisma.systemChecklist.deleteMany({}),
+      () => prisma.userRole.deleteMany({}),
+      () => prisma.user.deleteMany({}),
+    ];
+    for (const step of steps) {
+      try {
+        await step();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "";
+        if (/does not exist|saknas/i.test(msg)) {
+          console.warn("Tabell saknas, hoppar över:", msg);
+          continue;
+        }
+        console.error(e);
+        return NextResponse.json(
+          {
+            error:
+              "Kunde inte rensa användardata i databasen. Detalj: " +
+              (e instanceof Error ? e.message : "Okänt fel"),
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // 2) Rensa Supabase Auth
