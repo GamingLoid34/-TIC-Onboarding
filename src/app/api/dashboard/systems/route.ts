@@ -11,7 +11,7 @@ export async function PATCH(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
     }
-    if (!hasAnyRole(user.roles, ["ARBETSLEDARE"])) {
+    if (!hasAnyRole(user.roles, ["ARBETSLEDARE", "ADMIN"])) {
       return NextResponse.json(
         { error: "Endast chef kan ändra IT-status" },
         { status: 403 }

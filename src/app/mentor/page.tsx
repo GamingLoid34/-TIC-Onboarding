@@ -81,7 +81,7 @@ export default function MentorPage() {
         const nextRoles = Array.isArray(me.roles) ? me.roles : me.role ? [me.role] : [];
         setRoles(nextRoles);
         setCurrentUserId(me.id);
-        setCanEdit(nextRoles.includes("MENTOR") || nextRoles.includes("ARBETSLEDARE"));
+        setCanEdit(nextRoles.includes("MENTOR") || nextRoles.includes("ARBETSLEDARE") || nextRoles.includes("ADMIN"));
       })
       .catch(() => {
         setRoles([]);
@@ -92,7 +92,7 @@ export default function MentorPage() {
 
   useEffect(() => {
     if (roles === null) return;
-    const canView = roles.includes("NYANSTALLD") || roles.includes("MENTOR") || roles.includes("ARBETSLEDARE");
+    const canView = roles.includes("NYANSTALLD") || roles.includes("MENTOR") || roles.includes("ARBETSLEDARE") || roles.includes("ADMIN");
     if (!canView) {
       setError("Du har inte behörighet till mentorvyn.");
       setLoading(false);
@@ -106,7 +106,7 @@ export default function MentorPage() {
       .then(([nyanstalldaData, categoriesData]) => {
         setNyanstallda(nyanstalldaData);
         setCategories(categoriesData);
-        const selfOnly = roles.includes("NYANSTALLD") && !roles.includes("MENTOR") && !roles.includes("ARBETSLEDARE");
+        const selfOnly = roles.includes("NYANSTALLD") && !roles.includes("MENTOR") && !roles.includes("ARBETSLEDARE") && !roles.includes("ADMIN");
         if (selfOnly && currentUserId) {
           setSelectedNyanstalldId(currentUserId);
         } else if (nyanstalldaData.length > 0 && !selectedNyanstalldId) {
@@ -177,7 +177,8 @@ export default function MentorPage() {
     !!roles &&
     roles.includes("NYANSTALLD") &&
     !roles.includes("MENTOR") &&
-    !roles.includes("ARBETSLEDARE");
+    !roles.includes("ARBETSLEDARE") &&
+    !roles.includes("ADMIN");
 
   const setTaskProgress = (taskId: string, upd: Partial<TaskProgressState>) => {
     if (!canEdit) return;

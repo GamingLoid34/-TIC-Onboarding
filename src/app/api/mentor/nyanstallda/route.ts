@@ -9,11 +9,11 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
     }
-    if (!hasAnyRole(user.roles, ["NYANSTALLD", "MENTOR", "ARBETSLEDARE"])) {
+    if (!hasAnyRole(user.roles, ["NYANSTALLD", "MENTOR", "ARBETSLEDARE", "ADMIN"])) {
       return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
     }
 
-    const onlySelf = user.roles.includes("NYANSTALLD") && !hasAnyRole(user.roles, ["MENTOR", "ARBETSLEDARE"]);
+    const onlySelf = user.roles.includes("NYANSTALLD") && !hasAnyRole(user.roles, ["MENTOR", "ARBETSLEDARE", "ADMIN"]);
     const nyanstallda = await prisma.user.findMany({
       where: onlySelf ? { id: user.id } : { role: "NYANSTALLD" },
       include: { systemChecklists: true },

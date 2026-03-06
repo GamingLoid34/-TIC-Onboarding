@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
   }
-  if (!hasAnyRole(user.roles, ["NYANSTALLD", "MENTOR", "ARBETSLEDARE"])) {
+  if (!hasAnyRole(user.roles, ["NYANSTALLD", "MENTOR", "ARBETSLEDARE", "ADMIN"])) {
     return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
   }
 
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     );
   }
   try {
-    const selfOnly = user.roles.includes("NYANSTALLD") && !hasAnyRole(user.roles, ["MENTOR", "ARBETSLEDARE"]);
+    const selfOnly = user.roles.includes("NYANSTALLD") && !hasAnyRole(user.roles, ["MENTOR", "ARBETSLEDARE", "ADMIN"]);
     if (selfOnly && nyanstalldId !== user.id) {
       return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
     }
@@ -53,7 +53,7 @@ export async function PATCH(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
     }
-    if (!hasAnyRole(user.roles, ["MENTOR", "ARBETSLEDARE"])) {
+    if (!hasAnyRole(user.roles, ["MENTOR", "ARBETSLEDARE", "ADMIN"])) {
       return NextResponse.json({ error: "Endast mentor eller chef kan ändra progress" }, { status: 403 });
     }
 

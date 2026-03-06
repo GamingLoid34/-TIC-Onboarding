@@ -101,17 +101,17 @@ export function ProgressOverview({ mode }: { mode: "dashboard" | "chef" }) {
 
   const canView = useMemo(() => {
     if (!roles) return false;
-    return hasAnyRole(roles, ["MENTOR", "ARBETSLEDARE"]);
+    return hasAnyRole(roles, ["MENTOR", "ARBETSLEDARE", "ADMIN"]);
   }, [roles]);
 
   const canEditSystems = useMemo(() => {
     if (!roles) return false;
-    return roles.includes("ARBETSLEDARE");
+    return roles.includes("ARBETSLEDARE") || roles.includes("ADMIN");
   }, [roles]);
 
   useEffect(() => {
     if (!roles) return;
-    if (!canView || (mode === "chef" && !roles.includes("ARBETSLEDARE"))) {
+    if (!canView || (mode === "chef" && !roles.includes("ARBETSLEDARE") && !roles.includes("ADMIN"))) {
       setLoading(false);
       return;
     }
@@ -161,7 +161,7 @@ export function ProgressOverview({ mode }: { mode: "dashboard" | "chef" }) {
     );
   }
 
-  if (!canView || (mode === "chef" && !roles.includes("ARBETSLEDARE"))) {
+  if (!canView || (mode === "chef" && !roles.includes("ARBETSLEDARE") && !roles.includes("ADMIN"))) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-6">
         <p className="font-medium text-red-800">Ingen behörighet</p>

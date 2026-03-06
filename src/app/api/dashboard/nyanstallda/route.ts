@@ -9,7 +9,7 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
     }
-    if (!hasAnyRole(user.roles, ["MENTOR", "ARBETSLEDARE"])) {
+    if (!hasAnyRole(user.roles, ["MENTOR", "ARBETSLEDARE", "ADMIN"])) {
       return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
     }
 

@@ -37,15 +37,16 @@ export function getPrimaryRole(roles: AppRole[]): AppRole {
 
 export function buildNavItems(roles: AppRole[]): NavItem[] {
   const items: NavItem[] = [];
+  const isSuperAdmin = roles.includes("ADMIN");
 
-  if (roles.includes("NYANSTALLD")) {
+  if (roles.includes("NYANSTALLD") || isSuperAdmin) {
     items.push({ href: "/mentor", label: "Min onboarding" });
   }
-  if (roles.includes("MENTOR") || roles.includes("ARBETSLEDARE")) {
+  if (roles.includes("MENTOR") || roles.includes("ARBETSLEDARE") || isSuperAdmin) {
     items.push({ href: "/dashboard", label: "Dashboard" });
     items.push({ href: "/mentor", label: "Mentor" });
   }
-  if (roles.includes("ARBETSLEDARE")) {
+  if (roles.includes("ARBETSLEDARE") || isSuperAdmin) {
     items.push({ href: "/chef", label: "Chef" });
   }
   if (roles.includes("ADMIN")) {
@@ -60,9 +61,9 @@ export function buildNavItems(roles: AppRole[]): NavItem[] {
 }
 
 export function getDefaultRoute(roles: AppRole[]) {
+  if (roles.includes("ADMIN")) return "/dashboard";
   if (roles.includes("ARBETSLEDARE")) return "/chef";
   if (roles.includes("MENTOR")) return "/dashboard";
-  if (roles.includes("ADMIN")) return "/admin/tasks";
   return "/mentor";
 }
 
