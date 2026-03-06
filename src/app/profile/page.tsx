@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -42,7 +43,7 @@ export default function ProfilePage() {
     <div className="space-y-6">
       <div className="card-section">
         <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
-          Profil
+          Inställningar
         </h1>
         <p className="mt-3 text-sm text-gray-500">Inloggad som</p>
         <p className="mt-1 font-medium text-gray-900">
@@ -61,6 +62,15 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {roles.includes("ADMIN") && (
+        <Link
+          href="/admin/users"
+          className="block rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-900 shadow-sm hover:bg-gray-50"
+        >
+          Användare
+        </Link>
+      )}
 
       <button
         type="button"

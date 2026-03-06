@@ -35,20 +35,21 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const updated = await prisma.systemChecklist.updateMany({
-      where: {
-        nyanstalldId: String(nyanstalldId),
-        systemName: String(systemName),
-      },
-      data: { status: status as "PENDING" | "ORDERED" | "READY" },
-    });
+    const nid = String(nyanstalldId);
+    const sname = String(systemName);
+    const newStatus = status as "PENDING" | "ORDERED" | "READY";
 
-    if (updated.count === 0) {
-      return NextResponse.json(
-        { error: "IT-system hittades inte för denna nyanställd" },
-        { status: 404 }
-      );
-    }
+    await prisma.systemChecklist.upsert({
+      where: {
+        nyanstalldId_systemName: { nyanstalldId: nid, systemName: sname },
+      },
+      create: {
+        nyanstalldId: nid,
+        systemName: sname,
+        status: newStatus,
+      },
+      update: { status: newStatus },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

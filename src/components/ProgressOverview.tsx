@@ -237,7 +237,7 @@ export function ProgressOverview({ mode }: { mode: "dashboard" | "chef" }) {
         </h2>
         {nyanstallda.length === 0 ? (
           <p className="text-gray-500">
-            Inga nyanställda i databasen. Kör <code className="rounded bg-gray-100 px-1">npm run db:seed</code>.
+            Inga nyanställda.
           </p>
         ) : (
           <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">

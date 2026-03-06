@@ -67,7 +67,7 @@ export function AppHeader() {
               href="/profile"
               className="text-sm font-medium text-gray-600 transition-colors hover:text-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary focus:ring-offset-2 rounded"
             >
-              Profil
+              Inställningar
             </Link>
           )}
           <HeaderAuth />
@@ -128,7 +128,7 @@ export function AppHeader() {
                   onClick={() => setMobileOpen(false)}
                   className="flex min-h-[48px] items-center rounded-xl px-4 text-base font-medium text-gray-700 transition-colors hover:bg-otic-primary/10 hover:text-otic-primary active:bg-otic-primary/15"
                 >
-                  Profil
+                  Inställningar
                 </Link>
               )}
             </nav>

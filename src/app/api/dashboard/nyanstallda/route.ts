@@ -13,7 +13,7 @@ export async function GET() {
       return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
     }
 
-    const [nyanstallda, totalTasks] = await Promise.all([
+    const [nyanstallda, totalTasks, systemNamesFromTasks] = await Promise.all([
       prisma.user.findMany({
         where: { role: "NYANSTALLD" },
         include: {
@@ -22,11 +22,24 @@ export async function GET() {
         },
       }),
       prisma.task.count(),
+      prisma.task.findMany({ where: { requiredSystemName: { not: null } }, select: { requiredSystemName: true } }),
     ]);
+
+    const allSystemNames = Array.from(
+      new Set((systemNamesFromTasks.map((t) => t.requiredSystemName).filter(Boolean) as string[]).sort())
+    );
 
     const data = nyanstallda.map((n) => {
       const completedVisad = n.taskProgresses.filter((p) => p.isVisad).length;
       const completedKan = n.taskProgresses.filter((p) => p.isKan).length;
+      const byName = new Map(n.systemChecklists.map((s) => [s.systemName, s.status]));
+      const systems =
+        allSystemNames.length > 0
+          ? allSystemNames.map((systemName) => ({
+              systemName,
+              status: (byName.get(systemName) ?? "PENDING") as "PENDING" | "ORDERED" | "READY",
+            }))
+          : n.systemChecklists.map((s) => ({ systemName: s.systemName, status: s.status }));
       return {
         id: n.id,
         name: n.name,
@@ -34,10 +47,7 @@ export async function GET() {
         totalTasks,
         completedVisad,
         completedKan,
-        systems: n.systemChecklists.map((s) => ({
-          systemName: s.systemName,
-          status: s.status,
-        })),
+        systems,
       };
     });
 

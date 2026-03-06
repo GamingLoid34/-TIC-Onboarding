@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 
 export function HeaderAuth() {
-  const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -21,33 +19,16 @@ export function HeaderAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
-  };
-
   if (!mounted) return null;
 
+  if (session) return null;
+
   return (
-    <div className="flex items-center gap-3">
-      {session ? (
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="text-sm font-medium text-gray-600 transition hover:text-otic-primary"
-        >
-          Logga ut
-        </button>
-      ) : (
-        <Link
-          href="/login"
-          className="text-sm font-medium text-gray-600 transition hover:text-otic-primary"
-        >
-          Logga in
-        </Link>
-      )}
-    </div>
+    <Link
+      href="/login"
+      className="text-sm font-medium text-gray-600 transition hover:text-otic-primary"
+    >
+      Logga in
+    </Link>
   );
 }

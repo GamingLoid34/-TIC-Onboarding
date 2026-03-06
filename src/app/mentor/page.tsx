@@ -206,7 +206,7 @@ export default function MentorPage() {
         <p className="font-medium text-red-800">Fel</p>
         <p className="mt-1 text-red-700">{error}</p>
         <p className="mt-2 text-sm text-red-600">
-          Kontrollera att databasen är nåbar (DATABASE_URL) och att du körtt db:push och db:seed.
+          Kontrollera att du är inloggad och att tjänsten svarar.
         </p>
       </div>
     );
@@ -235,7 +235,7 @@ export default function MentorPage() {
               Nyanställd
             </h2>
             {nyanstallda.length === 0 ? (
-              <p className="text-gray-500">Inga nyanställda i databasen. Kör db:seed för testdata.</p>
+              <p className="text-gray-500">Inga nyanställda.</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {nyanstallda.map((n) => (
@@ -295,7 +295,7 @@ export default function MentorPage() {
       </section>
 
       {loadingProgress && (
-        <p className="text-sm text-gray-500">Hämtar checklista…</p>
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-otic-primary border-t-transparent" aria-hidden />
       )}
 
       <section className="space-y-4 sm:space-y-6">
