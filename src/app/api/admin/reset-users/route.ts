@@ -136,17 +136,44 @@ export async function POST(request: NextRequest) {
             },
           });
         } catch (e) {
-          console.error(e);
-          return NextResponse.json(
-            {
-              error:
-                "Auth-användare skapad men profilen kunde inte skapas i databasen. Logga in med " +
-                firstUser.email +
-                " och importera användaren under Admin > Användare. Detalj: " +
-                (e instanceof Error ? e.message : "Okänt fel"),
-            },
-            { status: 500 }
-          );
+          const msg = e instanceof Error ? e.message : "";
+          const userRoleMissing = /UserRole.*does not exist|saknas/i.test(msg);
+          if (userRoleMissing) {
+            try {
+              await prisma.user.create({
+                data: {
+                  id: newId,
+                  name: firstUser.name,
+                  email: firstUser.email,
+                  role: "ADMIN",
+                },
+              });
+            } catch (e2) {
+              console.error(e2);
+              return NextResponse.json(
+                {
+                  error:
+                    "Auth-användare skapad men profilen kunde inte skapas. Logga in med " +
+                    firstUser.email +
+                    " och importera under Admin > Användare. Detalj: " +
+                    (e2 instanceof Error ? e2.message : "Okänt fel"),
+                },
+                { status: 500 }
+              );
+            }
+          } else {
+            console.error(e);
+            return NextResponse.json(
+              {
+                error:
+                  "Auth-användare skapad men profilen kunde inte skapas. Logga in med " +
+                  firstUser.email +
+                  " och importera under Admin > Användare. Detalj: " +
+                  msg,
+              },
+              { status: 500 }
+            );
+          }
         }
       }
     }
