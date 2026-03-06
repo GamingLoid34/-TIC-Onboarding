@@ -37,20 +37,19 @@ export function getPrimaryRole(roles: AppRole[]): AppRole {
 
 export function buildNavItems(roles: AppRole[]): NavItem[] {
   const items: NavItem[] = [];
-  const isSuperAdmin = roles.includes("ADMIN");
+  const isAdmin = roles.includes("ADMIN");
 
-  if (roles.includes("NYANSTALLD") || isSuperAdmin) {
+  if (roles.includes("NYANSTALLD") || isAdmin) {
     items.push({ href: "/mentor", label: "Min onboarding" });
   }
-  if (roles.includes("MENTOR") || roles.includes("ARBETSLEDARE") || isSuperAdmin) {
+  if (roles.includes("MENTOR") || roles.includes("ARBETSLEDARE") || isAdmin) {
     items.push({ href: "/dashboard", label: "Dashboard" });
     items.push({ href: "/mentor", label: "Mentor" });
   }
-  if (roles.includes("ARBETSLEDARE") || isSuperAdmin) {
-    items.push({ href: "/chef", label: "Chef" });
-  }
+  // Admin: direkta länkar (inga dubbletter under Profil)
   if (roles.includes("ADMIN")) {
-    items.push({ href: "/admin/tasks", label: "Admin" });
+    items.push({ href: "/admin/tasks", label: "Uppgifter" });
+    items.push({ href: "/admin/users", label: "Användare" });
   }
 
   const deduped = new Map<string, NavItem>();
@@ -62,7 +61,7 @@ export function buildNavItems(roles: AppRole[]): NavItem[] {
 
 export function getDefaultRoute(roles: AppRole[]) {
   if (roles.includes("ADMIN")) return "/dashboard";
-  if (roles.includes("ARBETSLEDARE")) return "/chef";
+  if (roles.includes("ARBETSLEDARE")) return "/dashboard";
   if (roles.includes("MENTOR")) return "/dashboard";
   return "/mentor";
 }

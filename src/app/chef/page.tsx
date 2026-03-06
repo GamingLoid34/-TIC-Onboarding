@@ -1,7 +1,5 @@
-"use client";
-
-import { ProgressOverview } from "@/components/ProgressOverview";
+import { redirect } from "next/navigation";
 
 export default function ChefPage() {
-  return <ProgressOverview mode="chef" />;
+  redirect("/dashboard");
 }

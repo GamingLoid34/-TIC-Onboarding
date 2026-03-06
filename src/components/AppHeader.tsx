@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AppRole, buildNavItems, ROLE_LABELS } from "@/lib/auth/roles";
+import { AppRole, buildNavItems } from "@/lib/auth/roles";
 import { HeaderAuth } from "./HeaderAuth";
 
 export function AppHeader() {
@@ -62,18 +62,6 @@ export function AppHeader() {
               {link.label}
             </Link>
           ))}
-          {roles.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              {roles.map((role) => (
-                <span
-                  key={role}
-                  className="rounded-full bg-otic-primary/10 px-2.5 py-1 text-xs font-medium text-otic-primary"
-                >
-                  {ROLE_LABELS[role]}
-                </span>
-              ))}
-            </div>
-          )}
           {roles.length > 0 && (
             <Link
               href="/profile"
@@ -142,21 +130,6 @@ export function AppHeader() {
                 >
                   Profil
                 </Link>
-              )}
-              {roles.length > 0 && (
-                <div className="mt-4 rounded-xl bg-gray-50 px-4 py-3">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Roller</span>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {roles.map((role) => (
-                      <span
-                        key={role}
-                        className="rounded-full bg-otic-primary/10 px-2.5 py-1 text-xs font-medium text-otic-primary"
-                      >
-                        {ROLE_LABELS[role]}
-                      </span>
-                    ))}
-                  </div>
-                </div>
               )}
             </nav>
           </div>
