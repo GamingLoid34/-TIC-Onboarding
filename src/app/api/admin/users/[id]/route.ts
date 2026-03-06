@@ -145,7 +145,7 @@ export async function PATCH(
       }
     }
 
-    // Skapa profil om den saknas och admin skickar roller.
+    // Skapa profil om den saknas och admin skickar roller. Om det redan finns en User med samma e-post (men annat id), koppla ihop genom att sätta User.id = Auth-id.
     if (!existing && roleList) {
       const { data: authData, error: authGetError } = await supabase.auth.admin.getUserById(id);
       if (authGetError) {
@@ -168,19 +168,86 @@ export async function PATCH(
         );
       }
 
-      const emailTaken = await prisma.user.findFirst({
+      const userByEmail = await prisma.user.findFirst({
         where: { email: createEmail.toLowerCase() },
+        include: { roles: { select: { role: true } } },
       });
-      if (emailTaken) {
-        return NextResponse.json(
-          {
-            error:
-              "En användare med e-postadressen " +
-              createEmail +
-              " finns redan i appen. Importera bara användare som inte har en profil, eller använd en annan e-post.",
+
+      if (userByEmail && userByEmail.id !== id) {
+        const oldId = userByEmail.id;
+        try {
+          await prisma.$transaction(async (tx) => {
+            try {
+              await tx.userRole.deleteMany({ where: { userId: oldId } });
+            } catch {
+              // UserRole-tabell kan saknas
+            }
+            await tx.systemChecklist.updateMany({ where: { nyanstalldId: oldId }, data: { nyanstalldId: id } });
+            await tx.taskProgress.updateMany({ where: { nyanstalldId: oldId }, data: { nyanstalldId: id } });
+            await tx.taskProgress.updateMany({ where: { visadByMentorId: oldId }, data: { visadByMentorId: id } });
+            await tx.subTaskProgress.updateMany({ where: { nyanstalldId: oldId }, data: { nyanstalldId: id } });
+            await tx.$executeRaw`
+              UPDATE "User" SET id = ${id}, name = ${createName}, email = ${createEmail}, role = ${roleList[0]}::"Role", "updatedAt" = now() WHERE id = ${oldId}
+            `;
+          });
+          const newRoleList = roleList as ("ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD")[];
+          try {
+            await prisma.userRole.createMany({
+              data: newRoleList.map((role) => ({ userId: id, role })),
+            });
+          } catch {
+            // UserRole-tabellen kan saknas; User.role är redan satt
+          }
+          const user = await prisma.user.findUnique({
+            where: { id },
+            include: { roles: { select: { role: true } } },
+          });
+          return NextResponse.json({
+            id: user!.id,
+            name: user!.name,
+            email: user!.email,
+            role: user!.role,
+            roles: user!.roles.length ? user!.roles.map((r) => r.role) : [user!.role],
+            hasProfile: true,
+          });
+        } catch (syncErr) {
+          console.error(syncErr);
+          return NextResponse.json(
+            {
+              error:
+                "Kunde inte koppla profilen till inloggningen. Detalj: " +
+                (syncErr instanceof Error ? syncErr.message : "Okänt fel"),
+            },
+            { status: 500 }
+          );
+        }
+      }
+
+      if (userByEmail && userByEmail.id === id) {
+        existing = userByEmail;
+      }
+
+      if (existing) {
+        const newRoleList = roleList as ("ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD")[];
+        await prisma.userRole.deleteMany({ where: { userId: id } });
+        await prisma.userRole.createMany({ data: newRoleList.map((role) => ({ userId: id, role })) });
+        const user = await prisma.user.update({
+          where: { id },
+          data: {
+            name: createName,
+            email: createEmail,
+            role: newRoleList[0],
           },
-          { status: 409 }
-        );
+          include: { roles: { select: { role: true } } },
+        });
+        return NextResponse.json({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          roles: user.roles.length ? user.roles.map((r) => r.role) : [user.role],
+          hasProfile: true,
+        });
       }
 
       let created;

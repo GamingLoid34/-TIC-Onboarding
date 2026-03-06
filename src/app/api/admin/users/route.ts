@@ -61,9 +61,15 @@ export async function GET() {
     }
 
     const prismaById = new Map((prismaUsers ?? []).map((u) => [u.id, u]));
+    const prismaByEmail = new Map(
+      (prismaUsers ?? []).map((u) => [u.email.trim().toLowerCase(), u])
+    );
 
     const merged = authUsers.map((authUser) => {
-      const dbUser = prismaById.get(authUser.id);
+      const dbUserById = prismaById.get(authUser.id);
+      const authEmailNorm = String(authUser.email ?? "").trim().toLowerCase();
+      const dbUserByEmail = authEmailNorm ? prismaByEmail.get(authEmailNorm) : null;
+      const dbUser = dbUserById ?? dbUserByEmail ?? null;
       const nameFromAuth =
         String(authUser.user_metadata?.name ?? "").trim() ||
         String(authUser.email ?? "").trim() ||
@@ -71,12 +77,13 @@ export async function GET() {
 
       if (dbUser) {
         return {
-          id: dbUser.id,
+          id: authUser.id,
           name: dbUser.name,
           email: dbUser.email,
           role: dbUser.role,
           roles: dbUser.roles.length ? dbUser.roles.map((r) => r.role) : [dbUser.role],
           hasProfile: true,
+          idMismatch: !!dbUserByEmail && !dbUserById,
         };
       }
 
