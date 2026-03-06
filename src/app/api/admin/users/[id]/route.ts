@@ -168,6 +168,21 @@ export async function PATCH(
         );
       }
 
+      const emailTaken = await prisma.user.findFirst({
+        where: { email: createEmail.toLowerCase() },
+      });
+      if (emailTaken) {
+        return NextResponse.json(
+          {
+            error:
+              "En användare med e-postadressen " +
+              createEmail +
+              " finns redan i appen. Importera bara användare som inte har en profil, eller använd en annan e-post.",
+          },
+          { status: 409 }
+        );
+      }
+
       let created;
       try {
         created = await prisma.user.create({
@@ -190,13 +205,15 @@ export async function PATCH(
             ? createErr.message
             : "Kunde inte skapa användarprofil i databasen.";
         console.error(createErr);
+        const isEmailConflict = /unique constraint.*email|Unique constraint failed.*email/i.test(msg);
         return NextResponse.json(
           {
-            error:
-              "Kunde inte importera användaren. Kontrollera att tabellerna User och UserRole finns (kör Prisma db push och eventuellt patch-add-user-roles.sql i Supabase). Detalj: " +
-              msg,
+            error: isEmailConflict
+              ? "En användare med den e-postadressen finns redan. Redigera den användaren istället eller använd en annan e-post."
+              : "Kunde inte importera användaren. Kontrollera att tabellerna User och UserRole finns (kör Prisma db push och eventuellt patch-add-user-roles.sql i Supabase). Detalj: " +
+                msg,
           },
-          { status: 500 }
+          { status: isEmailConflict ? 409 : 500 }
         );
       }
 
