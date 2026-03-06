@@ -1,36 +1,39 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-
-type Role = "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD";
+import { ROLE_LABELS, type AppRole } from "@/lib/auth/roles";
 
 interface User {
   id: string;
   name: string;
   email: string;
-  role: Role;
+  role: AppRole;
+  roles?: AppRole[];
 }
-
-const ROLE_LABELS: Record<Role, string> = {
-  ADMIN: "Admin",
-  ARBETSLEDARE: "Arbetsledare",
-  MENTOR: "Mentor",
-  NYANSTALLD: "Nyanställd",
-};
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [newRole, setNewRole] = useState<Role>("NYANSTALLD");
+  const [newRoles, setNewRoles] = useState<AppRole[]>(["NYANSTALLD"]);
   const [submitting, setSubmitting] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editRole, setEditRole] = useState<Role>("NYANSTALLD");
+  const [editRoles, setEditRoles] = useState<AppRole[]>(["NYANSTALLD"]);
+
+  const byRoleOrder = (a: AppRole, b: AppRole) =>
+    ["ADMIN", "ARBETSLEDARE", "MENTOR", "NYANSTALLD"].indexOf(a) -
+    ["ADMIN", "ARBETSLEDARE", "MENTOR", "NYANSTALLD"].indexOf(b);
+
+  const toggleRole = (list: AppRole[], role: AppRole) =>
+    list.includes(role)
+      ? list.filter((item) => item !== role)
+      : [...list, role].sort(byRoleOrder);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -46,7 +49,22 @@ export default function AdminUsersPage() {
   }, []);
 
   useEffect(() => {
-    fetchUsers();
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { roles?: AppRole[]; role?: AppRole } | null) => {
+        const roles = Array.isArray(data?.roles) ? data.roles : data?.role ? [data.role] : [];
+        const isAdmin = roles.includes("ADMIN");
+        setAuthorized(isAdmin);
+        if (isAdmin) {
+          fetchUsers();
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        setAuthorized(false);
+        setLoading(false);
+      });
   }, [fetchUsers]);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -66,7 +84,7 @@ export default function AdminUsersPage() {
           name: newName.trim(),
           email: newEmail.trim(),
           password: newPassword,
-          role: newRole,
+          roles: newRoles,
         }),
       });
       const data = await res.json();
@@ -75,7 +93,7 @@ export default function AdminUsersPage() {
       setNewName("");
       setNewEmail("");
       setNewPassword("");
-      setNewRole("NYANSTALLD");
+      setNewRoles(["NYANSTALLD"]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Kunde inte skapa användare");
     } finally {
@@ -83,13 +101,17 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleUpdateRole = async (id: string) => {
+  const handleUpdateRoles = async (id: string) => {
+    if (editRoles.length === 0) {
+      setError("Välj minst en roll.");
+      return;
+    }
     setError(null);
     try {
       const res = await fetch(`/api/admin/users/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: editRole }),
+        body: JSON.stringify({ roles: editRoles }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Kunde inte uppdatera");
@@ -116,6 +138,15 @@ export default function AdminUsersPage() {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <p className="text-gray-500">Hämtar användare…</p>
+      </div>
+    );
+  }
+
+  if (!authorized) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+        <p className="font-medium text-red-800">Ingen behörighet</p>
+        <p className="mt-1 text-red-700">Du har inte åtkomst till användaradministrationen.</p>
       </div>
     );
   }
@@ -186,19 +217,20 @@ export default function AdminUsersPage() {
             />
           </div>
           <div className="min-w-0 w-full sm:max-w-[180px]">
-            <label htmlFor="new-role" className="mb-1 block text-sm font-medium text-gray-700">Roll</label>
-            <select
-              id="new-role"
-              value={newRole}
-              onChange={(e) => setNewRole(e.target.value as Role)}
-              className="w-full min-h-[48px] rounded-xl border border-gray-300 bg-white px-4 py-3 focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
-            >
-              {(Object.keys(ROLE_LABELS) as Role[]).map((r) => (
-                <option key={r} value={r}>
-                  {ROLE_LABELS[r]}
-                </option>
+            <span className="mb-1 block text-sm font-medium text-gray-700">Roller</span>
+            <div className="flex flex-wrap gap-3">
+              {(Object.keys(ROLE_LABELS) as AppRole[]).map((role) => (
+                <label key={role} className="flex items-center gap-1.5 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={newRoles.includes(role)}
+                    onChange={() => setNewRoles((prev) => toggleRole(prev, role))}
+                    className="rounded border-gray-300 text-otic-primary focus:ring-otic-primary"
+                  />
+                  <span>{ROLE_LABELS[role]}</span>
+                </label>
               ))}
-            </select>
+            </div>
           </div>
           <button
             type="submit"
@@ -228,20 +260,22 @@ export default function AdminUsersPage() {
                 <div className="flex items-center gap-2">
                   {editingId === u.id ? (
                     <>
-                      <select
-                        value={editRole}
-                        onChange={(e) => setEditRole(e.target.value as Role)}
-                        className="rounded border border-gray-300 px-2 py-1 text-sm"
-                      >
-                        {(Object.keys(ROLE_LABELS) as Role[]).map((r) => (
-                          <option key={r} value={r}>
-                            {ROLE_LABELS[r]}
-                          </option>
+                      <div className="flex flex-wrap items-center gap-3">
+                        {(Object.keys(ROLE_LABELS) as AppRole[]).map((role) => (
+                          <label key={role} className="flex items-center gap-1.5 text-sm text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={editRoles.includes(role)}
+                              onChange={() => setEditRoles((prev) => toggleRole(prev, role))}
+                              className="rounded border-gray-300 text-otic-primary focus:ring-otic-primary"
+                            />
+                            <span>{ROLE_LABELS[role]}</span>
+                          </label>
                         ))}
-                      </select>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => handleUpdateRole(u.id)}
+                        onClick={() => handleUpdateRoles(u.id)}
                         className="min-h-[40px] rounded-lg bg-otic-primary px-3 py-2 text-sm font-medium text-white touch-manipulation"
                       >
                         Spara
@@ -256,14 +290,21 @@ export default function AdminUsersPage() {
                     </>
                   ) : (
                     <>
-                      <span className="rounded-full bg-otic-primary/15 px-2.5 py-0.5 text-xs font-medium text-otic-primary">
-                        {ROLE_LABELS[u.role]}
-                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {(u.roles?.length ? u.roles : [u.role]).map((role) => (
+                          <span
+                            key={role}
+                            className="rounded-full bg-otic-primary/15 px-2.5 py-0.5 text-xs font-medium text-otic-primary"
+                          >
+                            {ROLE_LABELS[role]}
+                          </span>
+                        ))}
+                      </div>
                       <button
                         type="button"
                         onClick={() => {
                           setEditingId(u.id);
-                          setEditRole(u.role);
+                          setEditRoles(u.roles?.length ? u.roles : [u.role]);
                         }}
                         className="min-h-[40px] rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-white touch-manipulation"
                       >

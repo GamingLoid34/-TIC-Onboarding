@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentAppUser } from "@/lib/auth/server";
+import { hasAnyRole } from "@/lib/auth/roles";
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentAppUser();
+    if (!user) {
+      return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
+    }
+    if (!hasAnyRole(user.roles, ["ADMIN"])) {
+      return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
+    }
+
     const body = await request.json();
     const { title, url, taskId, sortOrder } = body;
 

@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentAppUser } from "@/lib/auth/server";
+import { hasAnyRole } from "@/lib/auth/roles";
 
 export async function GET() {
   try {
+    const user = await getCurrentAppUser();
+    if (!user) {
+      return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
+    }
+    if (!hasAnyRole(user.roles, ["ADMIN"])) {
+      return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
+    }
+
     const [tasks, categories] = await Promise.all([
       prisma.task.findMany({
         orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }],
@@ -28,6 +38,14 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentAppUser();
+    if (!user) {
+      return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
+    }
+    if (!hasAnyRole(user.roles, ["ADMIN"])) {
+      return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
+    }
+
     const body = await request.json();
     const { title, description, categoryId, requiredSystemName, sortOrder } = body;
 

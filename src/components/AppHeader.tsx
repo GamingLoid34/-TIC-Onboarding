@@ -1,17 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { AppRole, buildNavItems, ROLE_LABELS } from "@/lib/auth/roles";
 import { HeaderAuth } from "./HeaderAuth";
 
-const navLinks = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/mentor", label: "Mentor" },
-  { href: "/admin/tasks", label: "Admin" },
-];
-
 export function AppHeader() {
+  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [navLinks, setNavLinks] = useState<{ href: string; label: string }[] | null>(null);
+  const [roles, setRoles] = useState<AppRole[]>([]);
+
+  useEffect(() => {
+    if (pathname === "/login") return;
+
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { roles?: AppRole[]; role?: AppRole } | null) => {
+        const nextRoles = Array.isArray(data?.roles)
+          ? data.roles
+          : data?.role
+            ? [data.role]
+            : [];
+        setRoles(nextRoles);
+        setNavLinks(buildNavItems(nextRoles));
+      })
+      .catch(() => {
+        setRoles([]);
+        setNavLinks([]);
+      });
+  }, [pathname]);
+
+  if (pathname === "/login") return null;
+
+  const visibleNavLinks = navLinks ?? [];
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200/80 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/80">
@@ -30,7 +53,7 @@ export function AppHeader() {
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-6 md:flex">
-          {navLinks.map((link) => (
+          {visibleNavLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -39,9 +62,26 @@ export function AppHeader() {
               {link.label}
             </Link>
           ))}
-          <span className="rounded-full bg-otic-primary/10 px-2.5 py-1 text-xs font-medium text-otic-primary">
-            Arbetsledare
-          </span>
+          {roles.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {roles.map((role) => (
+                <span
+                  key={role}
+                  className="rounded-full bg-otic-primary/10 px-2.5 py-1 text-xs font-medium text-otic-primary"
+                >
+                  {ROLE_LABELS[role]}
+                </span>
+              ))}
+            </div>
+          )}
+          {roles.length > 0 && (
+            <Link
+              href="/profile"
+              className="text-sm font-medium text-gray-600 transition-colors hover:text-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary focus:ring-offset-2 rounded"
+            >
+              Profil
+            </Link>
+          )}
           <HeaderAuth />
         </nav>
 
@@ -84,7 +124,7 @@ export function AppHeader() {
               </button>
             </div>
             <nav className="flex flex-col p-4">
-              {navLinks.map((link) => (
+              {visibleNavLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
@@ -94,10 +134,30 @@ export function AppHeader() {
                   {link.label}
                 </Link>
               ))}
-              <div className="mt-4 rounded-xl bg-gray-50 px-4 py-3">
-                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Roll</span>
-                <p className="mt-0.5 text-sm font-medium text-otic-primary">Arbetsledare</p>
-              </div>
+              {roles.length > 0 && (
+                <Link
+                  href="/profile"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex min-h-[48px] items-center rounded-xl px-4 text-base font-medium text-gray-700 transition-colors hover:bg-otic-primary/10 hover:text-otic-primary active:bg-otic-primary/15"
+                >
+                  Profil
+                </Link>
+              )}
+              {roles.length > 0 && (
+                <div className="mt-4 rounded-xl bg-gray-50 px-4 py-3">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Roller</span>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {roles.map((role) => (
+                      <span
+                        key={role}
+                        className="rounded-full bg-otic-primary/10 px-2.5 py-1 text-xs font-medium text-otic-primary"
+                      >
+                        {ROLE_LABELS[role]}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </nav>
           </div>
         </>

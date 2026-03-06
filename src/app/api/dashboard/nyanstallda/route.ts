@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentAppUser } from "@/lib/auth/server";
+import { hasAnyRole } from "@/lib/auth/roles";
 
 export async function GET() {
   try {
+    const user = await getCurrentAppUser();
+    if (!user) {
+      return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
+    }
+    if (!hasAnyRole(user.roles, ["MENTOR", "ARBETSLEDARE"])) {
+      return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
+    }
+
     const [nyanstallda, totalTasks] = await Promise.all([
       prisma.user.findMany({
         where: { role: "NYANSTALLD" },

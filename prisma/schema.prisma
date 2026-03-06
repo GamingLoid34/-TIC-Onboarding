@@ -11,7 +11,7 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// Fyra roller: ADMIN, ARBETSLEDARE, MENTOR, NYANSTALLD
+// Fyra roller: ADMIN, ARBETSLEDARE (visas som Chef), MENTOR, NYANSTALLD
 enum Role {
   ADMIN
   ARBETSLEDARE
@@ -30,14 +30,25 @@ model User {
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
-  role      Role
+  role      Role     // primär roll för bakåtkompatibilitet
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  roles              UserRole[]        @relation("UserRoles")
   systemChecklists   SystemChecklist[]  @relation("NyanstalldSystems")
   visadProgresses    TaskProgress[]    @relation("VisadByMentor")
   taskProgresses     TaskProgress[]    @relation("NyanstalldProgress")
   subTaskProgresses  SubTaskProgress[]  @relation("NyanstalldSubTaskProgress")
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  role   Role
+  user   User   @relation("UserRoles", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@index([userId])
 }
 
 // IT-system per nyanställd (OCA, TIMS, Östgötatrafiken-konto, Ace, Axentia, Ödoc, TRV, Teleopti)

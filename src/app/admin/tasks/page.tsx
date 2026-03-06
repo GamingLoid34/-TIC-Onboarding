@@ -30,6 +30,7 @@ interface Task {
 export default function AdminTasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,7 +73,22 @@ export default function AdminTasksPage() {
   }, [newTaskCategoryId]);
 
   useEffect(() => {
-    fetchData();
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { roles?: string[]; role?: string } | null) => {
+        const roles = Array.isArray(data?.roles) ? data.roles : data?.role ? [data.role] : [];
+        const isAdmin = roles.includes("ADMIN");
+        setAuthorized(isAdmin);
+        if (isAdmin) {
+          fetchData();
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        setAuthorized(false);
+        setLoading(false);
+      });
   }, [fetchData]);
 
   const handleCreateTask = async (e: React.FormEvent) => {
@@ -221,6 +237,15 @@ export default function AdminTasksPage() {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <p className="text-gray-500">Hämtar uppgifter…</p>
+      </div>
+    );
+  }
+
+  if (!authorized) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+        <p className="font-medium text-red-800">Ingen behörighet</p>
+        <p className="mt-1 text-red-700">Du har inte åtkomst till uppgiftsadministrationen.</p>
       </div>
     );
   }

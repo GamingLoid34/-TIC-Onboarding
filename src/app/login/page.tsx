@@ -3,11 +3,12 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { AppRole, getDefaultRoute, normalizeRoles } from "@/lib/auth/roles";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/dashboard";
+  const redirectTo = searchParams.get("redirect");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +34,22 @@ function LoginForm() {
         return;
       }
       if (data.user) {
-        router.push(redirectTo);
+        let target = redirectTo || "/mentor";
+        try {
+          const meRes = await fetch("/api/auth/me");
+          if (meRes.ok) {
+            const me = await meRes.json() as { roles?: AppRole[]; role?: AppRole };
+            const roles = normalizeRoles(
+              Array.isArray(me.roles) ? me.roles : me.role ? [me.role] : []
+            );
+            if (roles.length > 0) {
+              target = redirectTo || getDefaultRoute(roles);
+            }
+          }
+        } catch {
+          /* fall back to target */
+        }
+        router.push(target);
         router.refresh();
       }
     } catch {

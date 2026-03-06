@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentAppUser } from "@/lib/auth/server";
+import { hasAnyRole } from "@/lib/auth/roles";
 
 export async function GET(request: NextRequest) {
+  const user = await getCurrentAppUser();
+  if (!user) {
+    return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
+  }
+  if (!hasAnyRole(user.roles, ["NYANSTALLD", "MENTOR", "ARBETSLEDARE"])) {
+    return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
+  }
+
   const nyanstalldId = request.nextUrl.searchParams.get("nyanstalldId");
   if (!nyanstalldId) {
     return NextResponse.json(
@@ -10,6 +20,11 @@ export async function GET(request: NextRequest) {
     );
   }
   try {
+    const selfOnly = user.roles.includes("NYANSTALLD") && !hasAnyRole(user.roles, ["MENTOR", "ARBETSLEDARE"]);
+    if (selfOnly && nyanstalldId !== user.id) {
+      return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
+    }
+
     const progress = await prisma.taskProgress.findMany({
       where: { nyanstalldId },
       include: { task: true },
@@ -19,7 +34,7 @@ export async function GET(request: NextRequest) {
       taskId: p.taskId,
       isVisad: p.isVisad,
       isKan: p.isKan,
-      notes: p.notes ?? "",
+      notes: selfOnly ? "" : (p.notes ?? ""),
     }));
 
     return NextResponse.json(data);
@@ -34,6 +49,14 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const user = await getCurrentAppUser();
+    if (!user) {
+      return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
+    }
+    if (!hasAnyRole(user.roles, ["MENTOR", "ARBETSLEDARE"])) {
+      return NextResponse.json({ error: "Endast mentor eller chef kan ändra progress" }, { status: 403 });
+    }
+
     const body = await request.json();
     const { nyanstalldId, taskId, isVisad, isKan, notes } = body;
 

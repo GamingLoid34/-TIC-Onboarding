@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AppRole } from "@/lib/auth/roles";
 
 type SystemStatus = "PENDING" | "ORDERED" | "READY";
 
@@ -59,11 +60,14 @@ function SystemStatusBadge({ status }: { status: SystemStatus }) {
 }
 
 export default function MentorPage() {
+  const [roles, setRoles] = useState<AppRole[] | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
   const [nyanstallda, setNyanstallda] = useState<Nyanstalld[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedNyanstalldId, setSelectedNyanstalldId] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [progress, setProgress] = useState<Record<string, TaskProgressState>>({});
+  const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +75,30 @@ export default function MentorPage() {
   const allTasks = categories.flatMap((c) => c.tasks);
 
   useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Auth"))))
+      .then((me: { id: string; roles?: AppRole[]; role?: AppRole }) => {
+        const nextRoles = Array.isArray(me.roles) ? me.roles : me.role ? [me.role] : [];
+        setRoles(nextRoles);
+        setCurrentUserId(me.id);
+        setCanEdit(nextRoles.includes("MENTOR") || nextRoles.includes("ARBETSLEDARE"));
+      })
+      .catch(() => {
+        setRoles([]);
+        setError("Du måste vara inloggad för att använda mentorvyn.");
+        setLoading(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (roles === null) return;
+    const canView = roles.includes("NYANSTALLD") || roles.includes("MENTOR") || roles.includes("ARBETSLEDARE");
+    if (!canView) {
+      setError("Du har inte behörighet till mentorvyn.");
+      setLoading(false);
+      return;
+    }
+
     Promise.all([
       fetch("/api/mentor/nyanstallda").then((r) => (r.ok ? r.json() : Promise.reject(new Error("Nyanställda")))),
       fetch("/api/mentor/categories").then((r) => (r.ok ? r.json() : Promise.reject(new Error("Kategorier")))),
@@ -78,13 +106,16 @@ export default function MentorPage() {
       .then(([nyanstalldaData, categoriesData]) => {
         setNyanstallda(nyanstalldaData);
         setCategories(categoriesData);
-        if (nyanstalldaData.length > 0 && !selectedNyanstalldId) {
+        const selfOnly = roles.includes("NYANSTALLD") && !roles.includes("MENTOR") && !roles.includes("ARBETSLEDARE");
+        if (selfOnly && currentUserId) {
+          setSelectedNyanstalldId(currentUserId);
+        } else if (nyanstalldaData.length > 0 && !selectedNyanstalldId) {
           setSelectedNyanstalldId(nyanstalldaData[0].id);
         }
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [roles, currentUserId, selectedNyanstalldId]);
 
   const fetchProgress = useCallback(async (nyanstalldId: string) => {
     setLoadingProgress(true);
@@ -142,7 +173,14 @@ export default function MentorPage() {
   const getProgress = (taskId: string): TaskProgressState =>
     progress[taskId] ?? { isVisad: false, isKan: false, notes: "" };
 
+  const selfOnlyView =
+    !!roles &&
+    roles.includes("NYANSTALLD") &&
+    !roles.includes("MENTOR") &&
+    !roles.includes("ARBETSLEDARE");
+
   const setTaskProgress = (taskId: string, upd: Partial<TaskProgressState>) => {
+    if (!canEdit) return;
     setProgress((prev) => ({
       ...prev,
       [taskId]: { ...getProgress(taskId), ...upd },
@@ -177,42 +215,46 @@ export default function MentorPage() {
     <div className="space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl lg:text-3xl">
-          Mentorvy
+            {selfOnlyView ? "Min onboarding" : "Mentorvy"}
         </h1>
         <p className="mt-1 text-sm text-gray-600 sm:text-base">
-          Checklistor, Genomgången/Behärskar och anteckningar per nyanställd
+            {selfOnlyView
+              ? "Dina moment, länkar och status i onboarding."
+              : "Checklistor, Genomgången/Behärskar och anteckningar per nyanställd"}
         </p>
         <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-          {allTasks.length} moment i {categories.length} kategorier. Använd filtret för att begränsa vy.
+            {allTasks.length} moment i {categories.length} kategorier. Använd filtret för att begränsa vy.
         </p>
       </div>
 
       {/* Välj nyanställd */}
-      <section className="card-section">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500 sm:text-sm">
-          Nyanställd
-        </h2>
-        {nyanstallda.length === 0 ? (
-          <p className="text-gray-500">Inga nyanställda i databasen. Kör db:seed för testdata.</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {nyanstallda.map((n) => (
-              <button
-                key={n.id}
-                type="button"
-                onClick={() => setSelectedNyanstalldId(n.id)}
-                className={`min-h-[48px] rounded-xl border-2 px-4 py-3 text-left text-sm font-medium transition touch-manipulation sm:min-h-0 sm:py-2.5 ${
-                  selectedNyanstalldId === n.id
-                    ? "border-otic-primary bg-otic-primary/10 text-otic-primary"
-                    : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                {n.name}
-              </button>
-            ))}
-          </div>
+        {!selfOnlyView && (
+          <section className="card-section">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500 sm:text-sm">
+              Nyanställd
+            </h2>
+            {nyanstallda.length === 0 ? (
+              <p className="text-gray-500">Inga nyanställda i databasen. Kör db:seed för testdata.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {nyanstallda.map((n) => (
+                  <button
+                    key={n.id}
+                    type="button"
+                    onClick={() => setSelectedNyanstalldId(n.id)}
+                    className={`min-h-[48px] rounded-xl border-2 px-4 py-3 text-left text-sm font-medium transition touch-manipulation sm:min-h-0 sm:py-2.5 ${
+                      selectedNyanstalldId === n.id
+                        ? "border-otic-primary bg-otic-primary/10 text-otic-primary"
+                        : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    {n.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
         )}
-      </section>
 
       {selectedNyanstalld && (
         <section className="card-section">
@@ -267,6 +309,7 @@ export default function MentorPage() {
                 {group.tasks.map((task) => {
                   const prog = getProgress(task.id);
                   const systemLock = task.requiredSystemName && !isSystemReady(task.requiredSystemName);
+                  const readOnly = !canEdit || !!systemLock;
                   return (
                     <li
                       key={task.id}
@@ -315,6 +358,7 @@ export default function MentorPage() {
                             <input
                               type="checkbox"
                               checked={prog.isVisad}
+                              disabled={readOnly}
                               onChange={(e) => setTaskProgress(task.id, { isVisad: e.target.checked })}
                               className="h-5 w-5 shrink-0 rounded border-gray-300 text-otic-primary focus:ring-otic-primary"
                             />
@@ -324,6 +368,7 @@ export default function MentorPage() {
                             <input
                               type="checkbox"
                               checked={prog.isKan}
+                              disabled={readOnly}
                               onChange={(e) => setTaskProgress(task.id, { isKan: e.target.checked })}
                               className="h-5 w-5 shrink-0 rounded border-gray-300 text-otic-primary focus:ring-otic-primary"
                             />
@@ -331,20 +376,28 @@ export default function MentorPage() {
                           </label>
                         </div>
 
-                        <div className="mt-3">
-                          <label htmlFor={`notes-${task.id}`} className="sr-only">
-                            Anteckningar för {task.title}
-                          </label>
-                          <textarea
-                            id={`notes-${task.id}`}
-                            placeholder="Anteckningar (t.ex. behöver öva mer…)"
-                            value={prog.notes}
-                            onChange={(e) => setProgress((prev) => ({ ...prev, [task.id]: { ...getProgress(task.id), notes: e.target.value } }))}
-                            onBlur={(e) => saveProgress(task.id, { notes: e.target.value })}
-                            rows={2}
-                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
-                          />
-                        </div>
+                        {!selfOnlyView && (
+                          <div className="mt-3">
+                            <label htmlFor={`notes-${task.id}`} className="sr-only">
+                              Anteckningar för {task.title}
+                            </label>
+                            <textarea
+                              id={`notes-${task.id}`}
+                              placeholder="Anteckningar (t.ex. behöver öva mer…)"
+                              value={prog.notes}
+                              disabled={readOnly}
+                              onChange={(e) =>
+                                setProgress((prev) => ({
+                                  ...prev,
+                                  [task.id]: { ...getProgress(task.id), notes: e.target.value },
+                                }))
+                              }
+                              onBlur={(e) => saveProgress(task.id, { notes: e.target.value })}
+                              rows={2}
+                              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20 disabled:bg-gray-50"
+                            />
+                          </div>
+                        )}
                       </div>
                     </li>
                   );
