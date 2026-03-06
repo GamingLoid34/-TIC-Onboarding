@@ -9,6 +9,7 @@ interface User {
   email: string;
   role: AppRole;
   roles?: AppRole[];
+  hasProfile?: boolean;
 }
 
 export default function AdminUsersPage() {
@@ -25,6 +26,7 @@ export default function AdminUsersPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editRoles, setEditRoles] = useState<AppRole[]>(["NYANSTALLD"]);
+  const [editPassword, setEditPassword] = useState("");
 
   const byRoleOrder = (a: AppRole, b: AppRole) =>
     ["ADMIN", "ARBETSLEDARE", "MENTOR", "NYANSTALLD"].indexOf(a) -
@@ -111,12 +113,16 @@ export default function AdminUsersPage() {
       const res = await fetch(`/api/admin/users/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roles: editRoles }),
+        body: JSON.stringify({
+          roles: editRoles,
+          ...(editPassword ? { password: editPassword } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Kunde inte uppdatera");
-      setUsers((prev) => prev.map((u) => (u.id === id ? data : u)));
+      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...data } : u)));
       setEditingId(null);
+      setEditPassword("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Kunde inte uppdatera");
     }
@@ -273,6 +279,20 @@ export default function AdminUsersPage() {
                           </label>
                         ))}
                       </div>
+                      <div className="min-w-[220px]">
+                        <label className="mb-1 block text-sm font-medium text-gray-700">
+                          Nytt lösenord (valfritt)
+                        </label>
+                        <input
+                          type="password"
+                          value={editPassword}
+                          onChange={(e) => setEditPassword(e.target.value)}
+                          placeholder="Minst 6 tecken"
+                          minLength={6}
+                          autoComplete="new-password"
+                          className="w-full min-h-[40px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={() => handleUpdateRoles(u.id)}
@@ -282,7 +302,10 @@ export default function AdminUsersPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setEditingId(null)}
+                        onClick={() => {
+                          setEditingId(null);
+                          setEditPassword("");
+                        }}
                         className="min-h-[40px] rounded-lg border border-gray-300 px-3 py-2 text-sm touch-manipulation"
                       >
                         Avbryt
@@ -299,16 +322,22 @@ export default function AdminUsersPage() {
                             {ROLE_LABELS[role]}
                           </span>
                         ))}
+                        {u.hasProfile === false && (
+                          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                            Saknar profil
+                          </span>
+                        )}
                       </div>
                       <button
                         type="button"
                         onClick={() => {
                           setEditingId(u.id);
                           setEditRoles(u.roles?.length ? u.roles : [u.role]);
+                          setEditPassword("");
                         }}
                         className="min-h-[40px] rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-white touch-manipulation"
                       >
-                        Ändra roll
+                        {u.hasProfile === false ? "Importera / ändra" : "Ändra roll"}
                       </button>
                       <button
                         type="button"

@@ -14,19 +14,109 @@ export async function GET() {
       return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
     }
 
-    const users = await prisma.user.findMany({
-      orderBy: [{ role: "asc" }, { name: "asc" }],
-      include: { roles: { select: { role: true } } },
+    const supabase = createAdminClient();
+
+    // 1) Hämta alla Auth-användare (Supabase) – dessa är "källan" för inloggningar.
+    const authUsers: Array<{
+      id: string;
+      email: string | null;
+      user_metadata?: { name?: string };
+      created_at?: string;
+    }> = [];
+
+    let page = 1;
+    const perPage = 1000;
+    // Supabase admin listUsers är paginerad.
+    // Vi loopar tills vi inte får tillbaka fler users.
+    while (true) {
+      const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+      if (error) {
+        console.error(error);
+        break;
+      }
+      const batch = (data?.users ?? []) as typeof authUsers;
+      authUsers.push(...batch);
+      if (!batch.length || batch.length < perPage) break;
+      page += 1;
+    }
+
+    // 2) Hämta app-profiler (Prisma). Om DB-schemat saknas ska admin ändå kunna se Auth-användarna.
+    let prismaUsers:
+      | Array<{
+          id: string;
+          name: string;
+          email: string;
+          role: "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD";
+          roles: Array<{ role: "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD" }>;
+        }>
+      | null = null;
+    try {
+      prismaUsers = await prisma.user.findMany({
+        orderBy: [{ role: "asc" }, { name: "asc" }],
+        include: { roles: { select: { role: true } } },
+      });
+    } catch (e) {
+      console.error(e);
+      prismaUsers = null;
+    }
+
+    const prismaById = new Map((prismaUsers ?? []).map((u) => [u.id, u]));
+
+    const merged = authUsers.map((authUser) => {
+      const dbUser = prismaById.get(authUser.id);
+      const nameFromAuth =
+        String(authUser.user_metadata?.name ?? "").trim() ||
+        String(authUser.email ?? "").trim() ||
+        "Okänd";
+
+      if (dbUser) {
+        return {
+          id: dbUser.id,
+          name: dbUser.name,
+          email: dbUser.email,
+          role: dbUser.role,
+          roles: dbUser.roles.length ? dbUser.roles.map((r) => r.role) : [dbUser.role],
+          hasProfile: true,
+        };
+      }
+
+      return {
+        id: authUser.id,
+        name: nameFromAuth,
+        email: String(authUser.email ?? ""),
+        role: "NYANSTALLD" as const,
+        roles: ["NYANSTALLD"] as const,
+        hasProfile: false,
+      };
     });
-    return NextResponse.json(
-      users.map((user) => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        roles: user.roles.length ? user.roles.map((entry) => entry.role) : [user.role],
-      }))
-    );
+
+    // Om det finns app-profiler som saknar motsvarande Auth-användare (borde inte hända),
+    // inkludera dem ändå så admin kan se/städa.
+    const authIds = new Set(authUsers.map((u) => u.id));
+    const dbOnly = (prismaUsers ?? [])
+      .filter((u) => !authIds.has(u.id))
+      .map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        roles: u.roles.length ? u.roles.map((r) => r.role) : [u.role],
+        hasProfile: true,
+      }));
+
+    const combined = [...merged, ...dbOnly];
+
+    // Stabil sortering: ADMIN först, sen Chef, Mentor, Nyanställd, och därefter namn.
+    const rank = (role: string) =>
+      ["ADMIN", "ARBETSLEDARE", "MENTOR", "NYANSTALLD"].indexOf(role);
+    combined.sort((a, b) => {
+      const ra = rank(a.role);
+      const rb = rank(b.role);
+      if (ra !== rb) return ra - rb;
+      return String(a.name).localeCompare(String(b.name), "sv");
+    });
+
+    return NextResponse.json(combined);
   } catch (e) {
     console.error(e);
     return NextResponse.json(
