@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentAppUser } from "@/lib/auth/server";
-import { hasAnyRole } from "@/lib/auth/roles";
+import { AppRole, hasAnyRole } from "@/lib/auth/roles";
 
 export async function GET() {
   try {
@@ -42,18 +42,11 @@ export async function GET() {
 
     // 2) Hämta app-profiler (Prisma). Om DB-schemat saknas ska admin ändå kunna se Auth-användarna.
     let prismaUsers:
-      | Array<{
-          id: string;
-          name: string;
-          email: string;
-          role: "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD";
-          roles: Array<{ role: "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD" }>;
-        }>
+      | Array<{ id: string; name: string; email: string; role: AppRole }>
       | null = null;
     try {
       prismaUsers = await prisma.user.findMany({
         orderBy: [{ role: "asc" }, { name: "asc" }],
-        include: { roles: { select: { role: true } } },
       });
     } catch (e) {
       console.error(e);
@@ -81,7 +74,7 @@ export async function GET() {
           name: dbUser.name,
           email: dbUser.email,
           role: dbUser.role,
-          roles: dbUser.roles.length ? dbUser.roles.map((r) => r.role) : [dbUser.role],
+          roles: [dbUser.role],
           hasProfile: true,
           idMismatch: !!dbUserByEmail && !dbUserById,
         };
@@ -107,7 +100,7 @@ export async function GET() {
         name: u.name,
         email: u.email,
         role: u.role,
-        roles: u.roles.length ? u.roles.map((r) => r.role) : [u.role],
+        roles: [u.role],
         hasProfile: true,
       }));
 
@@ -146,14 +139,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, email, role, roles: rolesBody, password } = body;
     const emailNorm = String(email).trim().toLowerCase();
-    const validRoles = ["ADMIN", "ARBETSLEDARE", "MENTOR", "NYANSTALLD"];
-
-    const roleList = Array.isArray(rolesBody) && rolesBody.length
-      ? rolesBody.filter((item: string) => validRoles.includes(String(item)))
-      : role
-        ? [String(role)]
-        : [];
-    const primaryRole = roleList[0] || role;
+    const validRoles: AppRole[] = ["ADMIN", "ARBETSLEDARE", "MENTOR", "NYANSTALLD"];
+    const primaryRole = (
+      Array.isArray(rolesBody) && rolesBody.length
+        ? String(rolesBody[0])
+        : role
+          ? String(role)
+          : ""
+    ) as AppRole;
 
     if (!name?.trim() || !emailNorm) {
       return NextResponse.json(
@@ -161,9 +154,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!roleList.length) {
+    if (!primaryRole) {
       return NextResponse.json(
-        { error: "Minst en roll krävs" },
+        { error: "Roll krävs" },
         { status: 400 }
       );
     }
@@ -175,7 +168,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!primaryRole || !validRoles.includes(String(primaryRole))) {
+    if (!validRoles.includes(primaryRole)) {
       return NextResponse.json(
         { error: "Ogiltig roll" },
         { status: 400 }
@@ -219,14 +212,8 @@ export async function POST(request: NextRequest) {
         id: authUser.user.id,
         name: String(name).trim(),
         email: emailNorm,
-        role: String(primaryRole) as "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD",
-        roles: {
-          create: roleList.map((item: string) => ({
-            role: item as "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD",
-          })),
-        },
+        role: primaryRole,
       },
-      include: { roles: { select: { role: true } } },
     });
 
     return NextResponse.json({
@@ -234,7 +221,7 @@ export async function POST(request: NextRequest) {
       name: user.name,
       email: user.email,
       role: user.role,
-      roles: user.roles.length ? user.roles.map((entry) => entry.role) : [user.role],
+      roles: [user.role],
     });
   } catch (e) {
     console.error(e);

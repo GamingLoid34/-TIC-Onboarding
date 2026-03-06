@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentAppUser } from "@/lib/auth/server";
-import { hasAnyRole } from "@/lib/auth/roles";
+import { AppRole, hasAnyRole } from "@/lib/auth/roles";
 
 export async function GET(
   _request: NextRequest,
@@ -20,14 +20,13 @@ export async function GET(
     const { id } = await params;
     const user = await prisma.user.findUnique({
       where: { id },
-      include: { roles: { select: { role: true } } },
     });
     if (!user) {
       return NextResponse.json({ error: "Användare hittades inte" }, { status: 404 });
     }
     return NextResponse.json({
       ...user,
-      roles: user.roles.length ? user.roles.map((entry) => entry.role) : [user.role],
+      roles: [user.role],
     });
   } catch (e) {
     console.error(e);
@@ -55,16 +54,17 @@ export async function PATCH(
     const body = await request.json();
     const { name, email, role, roles: rolesBody, password } = body;
 
-    const validRoles = ["ADMIN", "ARBETSLEDARE", "MENTOR", "NYANSTALLD"];
-    const roleList = Array.isArray(rolesBody) && rolesBody.length
-      ? rolesBody.filter((item: string) => validRoles.includes(String(item)))
-      : role !== undefined
-        ? [String(role)]
-        : undefined;
+    const validRoles: AppRole[] = ["ADMIN", "ARBETSLEDARE", "MENTOR", "NYANSTALLD"];
+    const nextRole =
+      Array.isArray(rolesBody) && rolesBody.length
+        ? (String(rolesBody[0]) as AppRole)
+        : role !== undefined
+          ? (String(role) as AppRole)
+          : undefined;
 
-    if (roleList !== undefined && !roleList.length) {
+    if (nextRole !== undefined && !validRoles.includes(nextRole)) {
       return NextResponse.json(
-        { error: "Minst en roll krävs" },
+        { error: "Ogiltig roll" },
         { status: 400 }
       );
     }
@@ -116,8 +116,8 @@ export async function PATCH(
       }
     }
 
-    // Prisma-profil + roller (om DB finns). Saknas profilen men roller skickas in:
-    // skapa profilen ("importera" Auth-user till appens DB).
+    // Prisma-profil. Saknas profilen men admin skickar roll:
+    // skapa profilen eller koppla ihop på e-post.
     let existing: { id: string; name: string; email: string; role: string } | null = null;
     try {
       existing = await prisma.user.findUnique({ where: { id } });
@@ -145,8 +145,7 @@ export async function PATCH(
       }
     }
 
-    // Skapa profil om den saknas och admin skickar roller. Om det redan finns en User med samma e-post (men annat id), koppla ihop genom att sätta User.id = Auth-id.
-    if (!existing && roleList) {
+    if (!existing && nextRole) {
       const { data: authData, error: authGetError } = await supabase.auth.admin.getUserById(id);
       if (authGetError) {
         console.error(authGetError);
@@ -170,44 +169,29 @@ export async function PATCH(
 
       const userByEmail = await prisma.user.findFirst({
         where: { email: createEmail.toLowerCase() },
-        include: { roles: { select: { role: true } } },
       });
 
       if (userByEmail && userByEmail.id !== id) {
         const oldId = userByEmail.id;
         try {
           await prisma.$transaction(async (tx) => {
-            try {
-              await tx.userRole.deleteMany({ where: { userId: oldId } });
-            } catch {
-              // UserRole-tabell kan saknas
-            }
             await tx.systemChecklist.updateMany({ where: { nyanstalldId: oldId }, data: { nyanstalldId: id } });
             await tx.taskProgress.updateMany({ where: { nyanstalldId: oldId }, data: { nyanstalldId: id } });
             await tx.taskProgress.updateMany({ where: { visadByMentorId: oldId }, data: { visadByMentorId: id } });
             await tx.subTaskProgress.updateMany({ where: { nyanstalldId: oldId }, data: { nyanstalldId: id } });
             await tx.$executeRaw`
-              UPDATE "User" SET id = ${id}, name = ${createName}, email = ${createEmail}, role = ${roleList[0]}::"Role", "updatedAt" = now() WHERE id = ${oldId}
+              UPDATE "User" SET id = ${id}, name = ${createName}, email = ${createEmail}, role = ${nextRole}::"Role", "updatedAt" = now() WHERE id = ${oldId}
             `;
           });
-          const newRoleList = roleList as ("ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD")[];
-          try {
-            await prisma.userRole.createMany({
-              data: newRoleList.map((role) => ({ userId: id, role })),
-            });
-          } catch {
-            // UserRole-tabellen kan saknas; User.role är redan satt
-          }
           const user = await prisma.user.findUnique({
             where: { id },
-            include: { roles: { select: { role: true } } },
           });
           return NextResponse.json({
             id: user!.id,
             name: user!.name,
             email: user!.email,
             role: user!.role,
-            roles: user!.roles.length ? user!.roles.map((r) => r.role) : [user!.role],
+            roles: [user!.role],
             hasProfile: true,
           });
         } catch (syncErr) {
@@ -228,24 +212,20 @@ export async function PATCH(
       }
 
       if (existing) {
-        const newRoleList = roleList as ("ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD")[];
-        await prisma.userRole.deleteMany({ where: { userId: id } });
-        await prisma.userRole.createMany({ data: newRoleList.map((role) => ({ userId: id, role })) });
         const user = await prisma.user.update({
           where: { id },
           data: {
             name: createName,
             email: createEmail,
-            role: newRoleList[0],
+            role: nextRole,
           },
-          include: { roles: { select: { role: true } } },
         });
         return NextResponse.json({
           id: user.id,
           name: user.name,
           email: user.email,
           role: user.role,
-          roles: user.roles.length ? user.roles.map((r) => r.role) : [user.role],
+          roles: [user.role],
           hasProfile: true,
         });
       }
@@ -257,14 +237,8 @@ export async function PATCH(
             id,
             name: createName,
             email: createEmail,
-            role: roleList[0] as "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD",
-            roles: {
-              create: roleList.map((item) => ({
-                role: item as "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD",
-              })),
-            },
+            role: nextRole,
           },
-          include: { roles: { select: { role: true } } },
         });
       } catch (createErr) {
         const msg =
@@ -277,7 +251,7 @@ export async function PATCH(
           {
             error: isEmailConflict
               ? "En användare med den e-postadressen finns redan. Redigera den användaren istället eller använd en annan e-post."
-              : "Kunde inte importera användaren. Kontrollera att tabellerna User och UserRole finns (kör Prisma db push och eventuellt patch-add-user-roles.sql i Supabase). Detalj: " +
+              : "Kunde inte importera användaren. Kontrollera att tabellen User finns och att Prisma är uppdaterat mot Supabase. Detalj: " +
                 msg,
           },
           { status: isEmailConflict ? 409 : 500 }
@@ -289,7 +263,7 @@ export async function PATCH(
         name: created.name,
         email: created.email,
         role: created.role,
-        roles: created.roles.length ? created.roles.map((entry) => entry.role) : [created.role],
+        roles: [created.role],
         hasProfile: true,
       });
     }
@@ -300,26 +274,15 @@ export async function PATCH(
     }
 
     try {
-      if (roleList) {
-        await prisma.userRole.deleteMany({ where: { userId: id } });
-        await prisma.userRole.createMany({
-          data: roleList.map((item) => ({
-            userId: id,
-            role: item as "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD",
-          })),
-        });
-      }
-
       const user = await prisma.user.update({
         where: { id },
         data: {
           ...(name !== undefined && { name: String(name).trim() }),
           ...(email !== undefined && { email: String(email).trim().toLowerCase() }),
-          ...(roleList?.length && {
-            role: roleList[0] as "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD",
+          ...(nextRole && {
+            role: nextRole,
           }),
         },
-        include: { roles: { select: { role: true } } },
       });
 
       return NextResponse.json({
@@ -327,7 +290,7 @@ export async function PATCH(
         name: user.name,
         email: user.email,
         role: user.role,
-        roles: user.roles.length ? user.roles.map((entry) => entry.role) : [user.role],
+        roles: [user.role],
         hasProfile: true,
       });
     } catch (updateErr) {
@@ -339,7 +302,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           error:
-            "Kunde inte spara roller/uppgifter. Kontrollera att tabellen UserRole finns (kör patch-add-user-roles.sql i Supabase om du inte gjort det). Detalj: " +
+            "Kunde inte spara användaren. Kontrollera att tabellen User finns och att Prisma är uppdaterat mot Supabase. Detalj: " +
             msg,
         },
         { status: 500 }

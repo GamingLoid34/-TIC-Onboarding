@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { AppRole, getPrimaryRole, normalizeRoles } from "./roles";
+import { AppRole, normalizeRoles } from "./roles";
 
 export interface CurrentAppUser {
   id: string;
@@ -18,40 +18,15 @@ export async function getCurrentAppUser(): Promise<CurrentAppUser | null> {
 
   if (!session?.user?.id) return null;
 
-  // Under rollout kan databasen sakna UserRole-tabellen.
-  // För att undvika driftstopp försöker vi läsa roles, men faller tillbaka till User.role om det inte går.
-  let user:
-    | {
-        id: string;
-        email: string;
-        name: string;
-        role: AppRole;
-        roles?: { role: AppRole }[];
-      }
-    | null = null;
-  try {
-    user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        roles: { select: { role: true } },
-      },
-    });
-  } catch (e) {
-    console.warn("Falling back to User.role (UserRole missing?)", e);
-    user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-      },
-    });
-  }
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+    },
+  });
 
   if (!user) {
     return {
@@ -63,15 +38,13 @@ export async function getCurrentAppUser(): Promise<CurrentAppUser | null> {
     };
   }
 
-  const roles = user.roles?.length
-    ? normalizeRoles(user.roles.map((entry) => entry.role))
-    : normalizeRoles([user.role]);
+  const roles = normalizeRoles([user.role]);
 
   return {
     id: user.id,
     email: user.email,
     name: user.name,
-    role: roles.length ? getPrimaryRole(roles) : null,
+    role: user.role,
     roles,
   };
 }

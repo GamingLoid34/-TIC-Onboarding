@@ -34,12 +34,11 @@ export async function POST(request: NextRequest) {
       // ingen body eller ogiltig JSON
     }
 
-    // 1) Rensa app-databasen i rätt ordning (FK). Hoppa över tabeller som saknas (t.ex. UserRole om patchen inte körts).
+    // 1) Rensa app-databasen i rätt ordning (FK).
     const steps = [
       () => prisma.subTaskProgress.deleteMany({}),
       () => prisma.taskProgress.deleteMany({}),
       () => prisma.systemChecklist.deleteMany({}),
-      () => prisma.userRole.deleteMany({}),
       () => prisma.user.deleteMany({}),
     ];
     for (const step of steps) {
@@ -130,50 +129,20 @@ export async function POST(request: NextRequest) {
               name: firstUser.name,
               email: firstUser.email,
               role: "ADMIN",
-              roles: {
-                create: [{ role: "ADMIN" }],
-              },
             },
           });
         } catch (e) {
-          const msg = e instanceof Error ? e.message : "";
-          const userRoleMissing = /UserRole.*does not exist|saknas/i.test(msg);
-          if (userRoleMissing) {
-            try {
-              await prisma.user.create({
-                data: {
-                  id: newId,
-                  name: firstUser.name,
-                  email: firstUser.email,
-                  role: "ADMIN",
-                },
-              });
-            } catch (e2) {
-              console.error(e2);
-              return NextResponse.json(
-                {
-                  error:
-                    "Auth-användare skapad men profilen kunde inte skapas. Logga in med " +
-                    firstUser.email +
-                    " och importera under Admin > Användare. Detalj: " +
-                    (e2 instanceof Error ? e2.message : "Okänt fel"),
-                },
-                { status: 500 }
-              );
-            }
-          } else {
-            console.error(e);
-            return NextResponse.json(
-              {
-                error:
-                  "Auth-användare skapad men profilen kunde inte skapas. Logga in med " +
-                  firstUser.email +
-                  " och importera under Admin > Användare. Detalj: " +
-                  msg,
-              },
-              { status: 500 }
-            );
-          }
+          console.error(e);
+          return NextResponse.json(
+            {
+              error:
+                "Auth-användare skapad men profilen kunde inte skapas. Logga in med " +
+                firstUser.email +
+                " och importera under Admin > Användare. Detalj: " +
+                (e instanceof Error ? e.message : "Okänt fel"),
+            },
+            { status: 500 }
+          );
         }
       }
     }
