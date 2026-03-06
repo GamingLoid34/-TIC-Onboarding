@@ -69,7 +69,16 @@ export async function PATCH(
       );
     }
 
-    const supabase = createAdminClient();
+    let supabase;
+    try {
+      supabase = createAdminClient();
+    } catch (adminError) {
+      const msg =
+        adminError instanceof Error
+          ? adminError.message
+          : "Supabase admin-klient kunde inte skapas. Kontrollera miljövariabler.";
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
 
     // Uppdatera Supabase Auth (lösenord / e-post / metadata) om något av det skickas in.
     const updateAuth: Record<string, unknown> = {};
@@ -159,20 +168,37 @@ export async function PATCH(
         );
       }
 
-      const created = await prisma.user.create({
-        data: {
-          id,
-          name: createName,
-          email: createEmail,
-          role: roleList[0] as "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD",
-          roles: {
-            create: roleList.map((item) => ({
-              role: item as "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD",
-            })),
+      let created;
+      try {
+        created = await prisma.user.create({
+          data: {
+            id,
+            name: createName,
+            email: createEmail,
+            role: roleList[0] as "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD",
+            roles: {
+              create: roleList.map((item) => ({
+                role: item as "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD",
+              })),
+            },
           },
-        },
-        include: { roles: { select: { role: true } } },
-      });
+          include: { roles: { select: { role: true } } },
+        });
+      } catch (createErr) {
+        const msg =
+          createErr instanceof Error
+            ? createErr.message
+            : "Kunde inte skapa användarprofil i databasen.";
+        console.error(createErr);
+        return NextResponse.json(
+          {
+            error:
+              "Kunde inte importera användaren. Kontrollera att tabellerna User och UserRole finns (kör Prisma db push och eventuellt patch-add-user-roles.sql i Supabase). Detalj: " +
+              msg,
+          },
+          { status: 500 }
+        );
+      }
 
       return NextResponse.json({
         id: created.id,
@@ -189,40 +215,58 @@ export async function PATCH(
       return NextResponse.json({ success: true, hasProfile: false });
     }
 
-    if (roleList) {
-      await prisma.userRole.deleteMany({ where: { userId: id } });
-      await prisma.userRole.createMany({
-        data: roleList.map((item) => ({
-          userId: id,
-          role: item as "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD",
-        })),
+    try {
+      if (roleList) {
+        await prisma.userRole.deleteMany({ where: { userId: id } });
+        await prisma.userRole.createMany({
+          data: roleList.map((item) => ({
+            userId: id,
+            role: item as "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD",
+          })),
+        });
+      }
+
+      const user = await prisma.user.update({
+        where: { id },
+        data: {
+          ...(name !== undefined && { name: String(name).trim() }),
+          ...(email !== undefined && { email: String(email).trim().toLowerCase() }),
+          ...(roleList?.length && {
+            role: roleList[0] as "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD",
+          }),
+        },
+        include: { roles: { select: { role: true } } },
       });
+
+      return NextResponse.json({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        roles: user.roles.length ? user.roles.map((entry) => entry.role) : [user.role],
+        hasProfile: true,
+      });
+    } catch (updateErr) {
+      const msg =
+        updateErr instanceof Error
+          ? updateErr.message
+          : "Okänt databasfel.";
+      console.error(updateErr);
+      return NextResponse.json(
+        {
+          error:
+            "Kunde inte spara roller/uppgifter. Kontrollera att tabellen UserRole finns (kör patch-add-user-roles.sql i Supabase om du inte gjort det). Detalj: " +
+            msg,
+        },
+        { status: 500 }
+      );
     }
-
-    const user = await prisma.user.update({
-      where: { id },
-      data: {
-        ...(name !== undefined && { name: String(name).trim() }),
-        ...(email !== undefined && { email: String(email).trim().toLowerCase() }),
-        ...(roleList?.length && {
-          role: roleList[0] as "ADMIN" | "ARBETSLEDARE" | "MENTOR" | "NYANSTALLD",
-        }),
-      },
-      include: { roles: { select: { role: true } } },
-    });
-
-    return NextResponse.json({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      roles: user.roles.length ? user.roles.map((entry) => entry.role) : [user.role],
-      hasProfile: true,
-    });
   } catch (e) {
     console.error(e);
+    const message =
+      e instanceof Error ? e.message : "Kunde inte uppdatera användare";
     return NextResponse.json(
-      { error: "Kunde inte uppdatera användare" },
+      { error: message },
       { status: 500 }
     );
   }
