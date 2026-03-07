@@ -109,7 +109,7 @@ function LoginForm() {
           </button>
         </form>
         <p className="mt-4 text-center text-xs text-gray-500">
-          E-post och lösenord sätts av en administratör under Inställningar → Användare.
+          E-post och lösenord sätts av en administratör via Användare i menyn.
         </p>
       </div>
     </div>

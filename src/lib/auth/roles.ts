@@ -47,7 +47,7 @@ export function buildNavItems(roles: AppRole[]): NavItem[] {
     items.push({ href: "/mentor", label: "Mentor" });
   }
   if (roles.includes("ADMIN")) {
-    items.push({ href: "/admin/tasks", label: "Uppgifter" });
+    items.push({ href: "/admin/users", label: "Användare" });
   }
 
   const deduped = new Map<string, NavItem>();

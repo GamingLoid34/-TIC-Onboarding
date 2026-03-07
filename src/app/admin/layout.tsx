@@ -12,13 +12,19 @@ export default function AdminLayout({
           href="/admin/tasks"
           className="min-h-[44px] flex items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-otic-primary touch-manipulation"
         >
-          Uppgifter & delmoment
+          Admin
         </Link>
         <Link
           href="/admin/users"
           className="min-h-[44px] flex items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-otic-primary touch-manipulation"
         >
           Användare
+        </Link>
+        <Link
+          href="/admin/systems"
+          className="min-h-[44px] flex items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-otic-primary touch-manipulation"
+        >
+          Program
         </Link>
       </nav>
       {children}

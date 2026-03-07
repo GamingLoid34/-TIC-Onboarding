@@ -13,7 +13,7 @@ export async function GET() {
       return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
     }
 
-    const [nyanstallda, totalTasks, systemNamesFromTasks] = await Promise.all([
+    const [nyanstallda, totalTasks, systemsFromDb, systemNamesFromTasks] = await Promise.all([
       prisma.user.findMany({
         where: { role: "NYANSTALLD" },
         include: {
@@ -22,12 +22,14 @@ export async function GET() {
         },
       }),
       prisma.task.count(),
+      prisma.system.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { name: true } }),
       prisma.task.findMany({ where: { requiredSystemName: { not: null } }, select: { requiredSystemName: true } }),
     ]);
 
-    const allSystemNames = Array.from(
-      new Set((systemNamesFromTasks.map((t) => t.requiredSystemName).filter(Boolean) as string[]).sort())
-    );
+    const allSystemNames =
+      systemsFromDb.length > 0
+        ? systemsFromDb.map((s) => s.name)
+        : Array.from(new Set((systemNamesFromTasks.map((t) => t.requiredSystemName).filter(Boolean) as string[]).sort()));
 
     const data = nyanstallda.map((n) => {
       const completedVisad = n.taskProgresses.filter((p) => p.isVisad).length;
