@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx repomix:*)",
+      "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(vercel ls:*)",
+      "Bash(vercel inspect:*)",
+      "Bash(npx prisma:*)",
+      "Bash(vercel env:*)",
+      "Bash(vercel link:*)",
+      "Bash(ANON_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nbXZvY3FmYXJibXhjdWJpc2x3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MTMyMTMsImV4cCI6MjA4ODE4OTIxM30.aT_Ko9HzrMA_PlrMsF5fjC2Pn-892oAbA-eabZLN7Ec\")",
+      "Bash(SERVICE_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nbXZvY3FmYXJibXhjdWJpc2x3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjYxMzIxMywiZXhwIjoyMDg4MTg5MjEzfQ.G1xvKR7MQ1mdebGH95dqt1nieWIn375ON65FFbMoizQ\")",
+      "Bash(DB_URL=\"postgresql://postgres.ngmvocqfarbmxcubislw:Pdvst3491!!@aws-1-eu-north-1.pooler.supabase.com:6543/postgres?pgbouncer=true\")",
+      "Bash(DIRECT=\"postgresql://postgres.ngmvocqfarbmxcubislw:Pdvst3491!!@aws-1-eu-north-1.pooler.supabase.com:6543/postgres\")",
+      "Bash(SUPA_URL=\"https://ngmvocqfarbmxcubislw.supabase.co\")",
+      "Read(//c/Mina appar/Jobb/onboarding/**)",
+      "Bash(netstat -ano)",
+      "Bash(tasklist /FI \"PID eq 47316\" /FO LIST)",
+      "Bash(tasklist /FI \"PID eq 27116\" /FO LIST)",
+      "Bash(cmd /c \"tasklist /FI \"\"PID eq 47316\"\" /FO LIST\")",
+      "Bash(cmd /c \"tasklist /FI \"\"PID eq 27116\"\" /FO LIST\")",
+      "Bash(cmd /c \"wmic process where processid=47316 get commandline\")",
+      "Bash(cmd /c \"wmic process where processid=27116 get commandline\")",
+      "Bash(cmd /c \"taskkill /PID 47316 /F\")",
+      "Bash(cmd /c \"taskkill /PID 27116 /F\")",
+      "Bash(cmd /c \"taskkill /IM node.exe /F\")",
+      "Bash(cmd /c \"taskkill /PID 47316 /PID 41716 /PID 52412 /PID 57212 /F\")",
+      "Bash(npx dotenv:*)"
+    ],
+    "additionalDirectories": [
+      "c:\\Mina appar\\Jobb\\onboarding\\src\\app\\api\\arbetsplats\\hotspots\\[id]"
+    ]
+  }
+}

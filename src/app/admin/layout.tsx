@@ -1,6 +1,6 @@
 "use client";
 
-import { ListTodo, Monitor, Users } from "lucide-react";
+import { LayoutDashboard, ListTodo, Monitor, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { AppRole } from "@/lib/auth/roles";
@@ -50,6 +50,12 @@ export default function AdminLayout({
               className="min-h-[44px] flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-otic-primary touch-manipulation"
             >
               <Monitor className="h-4 w-4" aria-hidden /> Program
+            </Link>
+            <Link
+              href="/admin/arbetsplats"
+              className="min-h-[44px] flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-otic-primary touch-manipulation"
+            >
+              <LayoutDashboard className="h-4 w-4" aria-hidden /> Arbetsplats
             </Link>
           </>
         )}

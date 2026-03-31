@@ -31,6 +31,8 @@ model System {
   id        String   @id @default(cuid())
   name      String   @unique
   sortOrder Int      @default(0)
+  url       String?  // länk till programmet (visas i arbetsplats-sidopanelen)
+  icon      String?  // lucide-ikonnamn (visas i arbetsplats-sidopanelen)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -100,6 +102,7 @@ model Task {
 
   progress  TaskProgress[]
   subTasks  SubTask[]       @relation("TaskSubTasks")
+  hotspots  HotspotTask[]
 }
 
 // Delmoment under en Task (valfri SharePoint-länk)
@@ -135,6 +138,46 @@ model TaskProgress {
 
   @@unique([taskId, nyanstalldId])
   @@index([nyanstalldId])
+  @@index([taskId])
+}
+
+// Arbetsplatsbild (POV-foto av trafikledningsstationen)
+model WorkspaceImage {
+  id        String    @id @default(cuid())
+  imageUrl  String
+  label     String
+  isActive  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  hotspots  Hotspot[]
+}
+
+// Klickbar punkt på arbetsplatsbilden
+model Hotspot {
+  id               String         @id @default(cuid())
+  workspaceImageId String
+  workspaceImage   WorkspaceImage @relation(fields: [workspaceImageId], references: [id], onDelete: Cascade)
+  label            String
+  x                Float          // position i % från vänster (0–100)
+  y                Float          // position i % från toppen (0–100)
+  icon             String?        // lucide-ikonnamn (valfritt)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  tasks HotspotTask[]
+}
+
+// Koppling hotspot ↔ Task (många-till-många)
+model HotspotTask {
+  id        String  @id @default(cuid())
+  hotspotId String
+  hotspot   Hotspot @relation(fields: [hotspotId], references: [id], onDelete: Cascade)
+  taskId    String
+  task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([hotspotId, taskId])
+  @@index([hotspotId])
   @@index([taskId])
 }
 

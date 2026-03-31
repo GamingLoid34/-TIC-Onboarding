@@ -45,6 +45,7 @@ export function buildNavItems(roles: AppRole[]): NavItem[] {
 
   if (canSeeMentor) {
     items.push({ href: "/mentor", label: "Onboarding" });
+    items.push({ href: "/arbetsplats", label: "Min arbetsplats" });
   }
   if (
     roles.includes("MENTOR") ||
