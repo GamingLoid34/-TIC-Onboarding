@@ -236,13 +236,12 @@ async function main() {
     ],
   });
 
-  // 4. Våra olika system (med requiredSystemName där angivet)
+  // 4. Våra olika system
   await prisma.task.createMany({
     data: [
       {
         categoryId: catVaraSystem.id,
         title: "Teleopti (Personalschema)",
-        requiredSystemName: "Teleopti",
         sortOrder: 1,
       },
       {
@@ -253,13 +252,11 @@ async function main() {
       {
         categoryId: catVaraSystem.id,
         title: "Telefonsystem (ACE + Fallback, sms och tonval)",
-        requiredSystemName: "Ace",
         sortOrder: 3,
       },
       {
         categoryId: catVaraSystem.id,
         title: "Informationskanaler: TIMS",
-        requiredSystemName: "TIMS",
         sortOrder: 4,
       },
       {
@@ -300,7 +297,6 @@ async function main() {
       {
         categoryId: catVaraSystem.id,
         title: "OCA/Ingrid (Fordon i realtid, trafikledaråtgärder)",
-        requiredSystemName: "OCA",
         sortOrder: 12,
       },
       {
@@ -318,7 +314,6 @@ async function main() {
         categoryId: catVaraSystem.id,
         title:
           "ÖDOC (Ärendehanteringssystem för trafikhändelser, beställningar, viteshantering, kundärenden)",
-        requiredSystemName: "Ödoc",
         sortOrder: 15,
       },
       {
@@ -355,7 +350,6 @@ async function main() {
       {
         categoryId: catSpecifikaUppgifter.id,
         title: "Vägarbeten/omläggningar (Processen trafikmeddelande, TIMS)",
-        requiredSystemName: "TIMS",
         sortOrder: 2,
       },
       {

@@ -124,7 +124,7 @@ export default function AdminSystemsPage() {
           <button type="button" onClick={() => setError(null)} className="ml-2 underline focus:outline-none">Stäng</button>
         </div>
       )}
-      <section className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm sm:p-6">
+      <section className="card-section">
         <h2 className="mb-4 text-base font-semibold text-gray-900 sm:text-lg">Lägg till program</h2>
         <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-3">
           <div className="min-w-0 flex-1 sm:max-w-xs">
@@ -154,7 +154,7 @@ export default function AdminSystemsPage() {
         ) : (
           <ul className="space-y-2">
             {systems.map((s) => (
-              <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white p-4">
+              <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-4 shadow-md">
                 {editingId === s.id ? (
                   <>
                     <input

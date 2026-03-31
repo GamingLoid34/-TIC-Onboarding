@@ -12,7 +12,7 @@ export async function PUT(
     if (!user) {
       return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
     }
-    if (!hasAnyRole(user.roles, ["ADMIN"])) {
+    if (!hasAnyRole(user.roles, ["ADMIN", "MENTOR"])) {
       return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
     }
 
@@ -54,7 +54,7 @@ export async function DELETE(
     if (!user) {
       return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
     }
-    if (!hasAnyRole(user.roles, ["ADMIN"])) {
+    if (!hasAnyRole(user.roles, ["ADMIN", "MENTOR"])) {
       return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
     }
 

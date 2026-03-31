@@ -14,6 +14,7 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [logoVisible, setLogoVisible] = useState(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,9 +64,8 @@ function LoginForm() {
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center py-8">
-      <div className="w-full max-w-sm rounded-2xl border border-gray-200/80 bg-white p-6 shadow-md sm:p-8">
-        <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">Logga in</h1>
-        <p className="mt-1 text-sm text-gray-500">Ötic Onboarding – Östgötatrafiken</p>
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-lg sm:p-8">
+        <h1 className="text-center text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">ÖTIC-Onboarding</h1>
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           {error && (
             <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
@@ -103,14 +103,21 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full min-h-[48px] rounded-xl bg-otic-primary py-3 text-base font-semibold text-white shadow-sm transition hover:bg-otic-primaryDark focus:outline-none focus:ring-2 focus:ring-otic-primary focus:ring-offset-2 disabled:opacity-50"
+            className="w-full min-h-[48px] rounded-2xl bg-otic-primary py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 hover:bg-otic-primaryDark hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-otic-primary focus:ring-offset-2 disabled:opacity-50"
           >
             {loading ? "Loggar in…" : "Logga in"}
           </button>
         </form>
-        <p className="mt-4 text-center text-xs text-gray-500">
-          E-post och lösenord sätts av en administratör via Användare i menyn.
-        </p>
+        {logoVisible && (
+          <div className="mt-6 flex justify-center">
+            <img
+src="/logo.png"
+            alt="ÖTIC"
+            className="h-10 w-auto max-w-[140px] object-contain object-center opacity-75"
+            onError={() => setLogoVisible(false)}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

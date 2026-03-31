@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { AppHeader } from "@/components/AppHeader";
 import "./globals.css";
 
-const inter = Inter({
+const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -14,7 +15,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ötic Onboarding – Östgötatrafiken",
+  title: "ÖTIC",
   description: "Onboarding av nya medarbetare på trafikledningscentralen",
 };
 
@@ -26,10 +27,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="sv" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="min-h-screen font-sans bg-gray-50/80 text-gray-900 antialiased">
+    <html lang="sv" className={`${plusJakarta.variable} ${jetbrainsMono.variable}`}>
+      <body className="min-h-screen font-sans bg-gray-50 text-gray-900 antialiased">
         <AppHeader />
-        <main className="mx-auto min-h-[calc(100vh-3.5rem)] max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 safe-area-padding">
+        <main className="mx-auto min-h-[calc(100vh-3.5rem)] max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 safe-area-padding">
           {children}
         </main>
       </body>

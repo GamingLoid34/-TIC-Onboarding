@@ -36,12 +36,13 @@ model System {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  role      Role     // primär roll för bakåtkompatibilitet
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String    @id @default(cuid())
+  name       String
+  email      String    @unique
+  role       Role      // primär roll för bakåtkompatibilitet
+  startDate  DateTime? // första arbetsdag (visas i dashboard)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   roles              UserRole[]        @relation("UserRoles")
   systemChecklists   SystemChecklist[]  @relation("NyanstalldSystems")
@@ -88,15 +89,14 @@ model Category {
 
 // Utbildningsmoment (Tasks) – smörgåsbords-utbildning
 model Task {
-  id                 String    @id @default(cuid())
-  title              String
-  description        String?
-  categoryId         String
-  category           Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  requiredSystemName String?
-  sortOrder          Int        @default(0)
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  id         String    @id @default(cuid())
+  title      String
+  description String?
+  categoryId String
+  category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  sortOrder  Int        @default(0)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
   progress  TaskProgress[]
   subTasks  SubTask[]       @relation("TaskSubTasks")

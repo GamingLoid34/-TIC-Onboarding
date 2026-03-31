@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
     }
-    if (!hasAnyRole(user.roles, ["ADMIN"])) {
+    if (!hasAnyRole(user.roles, ["ADMIN", "MENTOR"])) {
       return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
     }
 

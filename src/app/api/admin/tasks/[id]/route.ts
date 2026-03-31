@@ -12,7 +12,7 @@ export async function GET(
     if (!user) {
       return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
     }
-    if (!hasAnyRole(user.roles, ["ADMIN"])) {
+    if (!hasAnyRole(user.roles, ["ADMIN", "MENTOR"])) {
       return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
     }
 
@@ -49,13 +49,13 @@ export async function PUT(
     if (!user) {
       return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
     }
-    if (!hasAnyRole(user.roles, ["ADMIN"])) {
+    if (!hasAnyRole(user.roles, ["ADMIN", "MENTOR"])) {
       return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
     }
 
     const { id } = await params;
     const body = await request.json();
-    const { title, description, categoryId, requiredSystemName, sortOrder } = body;
+    const { title, description, categoryId, sortOrder } = body;
 
     const existing = await prisma.task.findUnique({ where: { id } });
     if (!existing) {
@@ -68,7 +68,6 @@ export async function PUT(
         ...(title !== undefined && { title: String(title).trim() }),
         ...(description !== undefined && { description: String(description).trim() || null }),
         ...(categoryId !== undefined && { categoryId: String(categoryId) }),
-        ...(requiredSystemName !== undefined && { requiredSystemName: String(requiredSystemName).trim() || null }),
         ...(typeof sortOrder === "number" && { sortOrder }),
       },
       include: {
@@ -96,7 +95,7 @@ export async function DELETE(
     if (!user) {
       return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
     }
-    if (!hasAnyRole(user.roles, ["ADMIN"])) {
+    if (!hasAnyRole(user.roles, ["ADMIN", "MENTOR"])) {
       return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
     }
 

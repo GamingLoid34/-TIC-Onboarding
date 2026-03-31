@@ -13,7 +13,7 @@ export async function GET() {
       return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
     }
 
-    const [nyanstallda, totalTasks, systemsFromDb, systemNamesFromTasks] = await Promise.all([
+    const [nyanstallda, totalTasks, systemsFromDb] = await Promise.all([
       prisma.user.findMany({
         where: { role: "NYANSTALLD" },
         include: {
@@ -23,13 +23,9 @@ export async function GET() {
       }),
       prisma.task.count(),
       prisma.system.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { name: true } }),
-      prisma.task.findMany({ where: { requiredSystemName: { not: null } }, select: { requiredSystemName: true } }),
     ]);
 
-    const allSystemNames =
-      systemsFromDb.length > 0
-        ? systemsFromDb.map((s) => s.name)
-        : Array.from(new Set((systemNamesFromTasks.map((t) => t.requiredSystemName).filter(Boolean) as string[]).sort()));
+    const allSystemNames = systemsFromDb.map((s) => s.name);
 
     const data = nyanstallda.map((n) => {
       const completedVisad = n.taskProgresses.filter((p) => p.isVisad).length;
@@ -45,7 +41,7 @@ export async function GET() {
       return {
         id: n.id,
         name: n.name,
-        startDate: n.createdAt.toISOString().slice(0, 10),
+        startDate: n.startDate ? n.startDate.toISOString().slice(0, 10) : n.createdAt.toISOString().slice(0, 10),
         totalTasks,
         completedVisad,
         completedKan,

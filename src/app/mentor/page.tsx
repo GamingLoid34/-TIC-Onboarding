@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AppRole } from "@/lib/auth/roles";
+import { ChevronDown, ChevronUp, GripVertical, Link2, ListChecks, Monitor, Users } from "lucide-react";
+import { AppRole, hasAnyRole } from "@/lib/auth/roles";
 
 type SystemStatus = "PENDING" | "ORDERED" | "READY";
 
@@ -34,7 +35,6 @@ interface Task {
   id: string;
   title: string;
   categoryId: string;
-  requiredSystemName: string | null;
   sortOrder: number;
   subTasks?: SubTask[];
 }
@@ -47,13 +47,13 @@ interface TaskProgressState {
 
 function SystemStatusBadge({ status }: { status: SystemStatus }) {
   const styles = {
-    PENDING: "bg-status-red/15 text-status-red border-status-red/30",
-    ORDERED: "bg-status-yellow/15 text-yellow-800 border-status-yellow/30",
-    READY: "bg-status-green/15 text-status-green border-status-green/30",
+    PENDING: "bg-red-100 text-red-800",
+    ORDERED: "bg-amber-100 text-amber-800",
+    READY: "bg-emerald-100 text-emerald-800",
   };
   const labels = { PENDING: "Ej beställd", ORDERED: "Beställd", READY: "Klar" };
   return (
-    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${styles[status]}`}>
       {labels[status]}
     </span>
   );
@@ -65,14 +65,181 @@ export default function MentorPage() {
   const [nyanstallda, setNyanstallda] = useState<Nyanstalld[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedNyanstalldId, setSelectedNyanstalldId] = useState<string>("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [progress, setProgress] = useState<Record<string, TaskProgressState>>({});
   const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverTaskIndex, setDragOverTaskIndex] = useState<number | null>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<{ categoryId: string; index: number } | null>(null);
 
   const allTasks = categories.flatMap((c) => c.tasks);
+  const canReorder = !!roles && hasAnyRole(roles, ["MENTOR", "ARBETSLEDARE", "ADMIN"]);
+
+  const tasksForView = selectedCategoryId
+    ? (categories.find((c) => c.id === selectedCategoryId)?.tasks ?? [])
+    : allTasks;
+  const currentCategory = selectedCategoryId ? categories.find((c) => c.id === selectedCategoryId) : null;
+
+  const saveOrder = useCallback(
+    async (
+      categoriesOrder: { id: string; sortOrder: number }[],
+      tasksOrder: { id: string; sortOrder: number; categoryId?: string }[]
+    ) => {
+      try {
+        await fetch("/api/mentor/order", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            categories: categoriesOrder.length ? categoriesOrder : undefined,
+            tasks: tasksOrder.length ? tasksOrder : undefined,
+          }),
+        });
+      } catch {
+        // Rollback handled by not updating state on error; could refetch
+      }
+    },
+    []
+  );
+
+  const moveCategory = (fromIndex: number, direction: 1 | -1) => {
+    const next = [...categories];
+    const toIndex = fromIndex + direction;
+    if (toIndex < 0 || toIndex >= next.length) return;
+    [next[fromIndex], next[toIndex]] = [next[toIndex], next[fromIndex]];
+    const reordered = next.map((c, i) => ({ id: c.id, sortOrder: i }));
+    setCategories(next.map((c, i) => ({ ...c, sortOrder: i })));
+    saveOrder(reordered, []);
+  };
+
+  const moveTask = (taskIndex: number, direction: 1 | -1) => {
+    if (!currentCategory) return;
+    const toIndex = taskIndex + direction;
+    if (toIndex < 0 || toIndex >= currentCategory.tasks.length) return;
+    reorderTask(taskIndex, toIndex);
+  };
+
+  const reorderTask = (fromIndex: number, toIndex: number) => {
+    if (!currentCategory) return;
+    reorderTaskInCategory(currentCategory.id, fromIndex, toIndex);
+  };
+
+  const reorderTaskInCategory = (categoryId: string, fromIndex: number, toIndex: number) => {
+    const cat = categories.find((c) => c.id === categoryId);
+    if (!cat) return;
+    const tasks = [...cat.tasks];
+    const [removed] = tasks.splice(fromIndex, 1);
+    tasks.splice(toIndex, 0, removed);
+    const reordered = tasks.map((t, i) => ({ id: t.id, sortOrder: i }));
+    setCategories((prev) =>
+      prev.map((c) =>
+        c.id === categoryId ? { ...c, tasks: tasks.map((t, i) => ({ ...t, sortOrder: i })) } : c
+      )
+    );
+    saveOrder([], reordered);
+  };
+
+  const moveTaskToCategory = (
+    taskId: string,
+    fromCategoryId: string,
+    toCategoryId: string,
+    toIndex: number
+  ) => {
+    const fromCat = categories.find((c) => c.id === fromCategoryId);
+    const toCat = categories.find((c) => c.id === toCategoryId);
+    if (!fromCat || !toCat) return;
+    const task = fromCat.tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const newFromTasks = fromCat.tasks.filter((t) => t.id !== taskId);
+    const newToTasks = [...toCat.tasks];
+    newToTasks.splice(toIndex, 0, { ...task, categoryId: toCategoryId, sortOrder: toIndex });
+
+    const payload: { id: string; sortOrder: number; categoryId?: string }[] = [
+      ...newFromTasks.map((t, i) => ({ id: t.id, sortOrder: i })),
+      ...newToTasks.map((t, i) => ({
+        id: t.id,
+        sortOrder: i,
+        ...(t.id === taskId ? { categoryId: toCategoryId } : {}),
+      })),
+    ];
+
+    setCategories((prev) =>
+      prev.map((c) => {
+        if (c.id === fromCategoryId) return { ...c, tasks: newFromTasks.map((t, i) => ({ ...t, sortOrder: i })) };
+        if (c.id === toCategoryId) return { ...c, tasks: newToTasks.map((t, i) => ({ ...t, sortOrder: i, categoryId: toCategoryId })) };
+        return c;
+      })
+    );
+    saveOrder([], payload);
+  };
+
+  const handleTaskDragStart = (
+    e: React.DragEvent,
+    taskId: string,
+    categoryId: string,
+    taskIndex: number
+  ) => {
+    setDraggedTaskId(taskId);
+    e.dataTransfer.setData(
+      "text/plain",
+      JSON.stringify({ taskId, fromCategoryId: categoryId, fromIndex: taskIndex })
+    );
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleTaskDragEnd = () => {
+    setDraggedTaskId(null);
+    setDragOverTaskIndex(null);
+    setDragOverTarget(null);
+  };
+
+  const handleTaskDragOver = (
+    e: React.DragEvent,
+    targetCategoryId: string,
+    taskIndex: number
+  ) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverTaskIndex(taskIndex);
+    setDragOverTarget({ categoryId: targetCategoryId, index: taskIndex });
+  };
+
+  const handleTaskDragLeave = () => {
+    setDragOverTaskIndex(null);
+    setDragOverTarget(null);
+  };
+
+  const handleTaskDrop = (
+    e: React.DragEvent,
+    toCategoryId: string,
+    toIndex: number
+  ) => {
+    e.preventDefault();
+    setDragOverTaskIndex(null);
+    setDragOverTarget(null);
+    setDraggedTaskId(null);
+    try {
+      const data = JSON.parse(e.dataTransfer.getData("text/plain") || "{}") as {
+        taskId?: string;
+        fromCategoryId?: string;
+        fromIndex?: number;
+      };
+      const { taskId, fromCategoryId, fromIndex } = data;
+      if (!taskId || fromCategoryId === undefined || typeof fromIndex !== "number") return;
+
+      if (fromCategoryId === toCategoryId) {
+        if (fromIndex === toIndex) return;
+        reorderTaskInCategory(toCategoryId, fromIndex, toIndex);
+      } else {
+        moveTaskToCategory(taskId, fromCategoryId, toCategoryId, toIndex);
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -100,12 +267,27 @@ export default function MentorPage() {
     }
 
     Promise.all([
-      fetch("/api/mentor/nyanstallda").then((r) => (r.ok ? r.json() : Promise.reject(new Error("Nyanställda")))),
-      fetch("/api/mentor/categories").then((r) => (r.ok ? r.json() : Promise.reject(new Error("Kategorier")))),
+      fetch("/api/mentor/nyanstallda").then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          throw new Error((body?.error as string) || "Nyanställda");
+        }
+        return r.json();
+      }),
+      fetch("/api/mentor/categories").then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          throw new Error((body?.error as string) || "Kategorier");
+        }
+        return r.json();
+      }),
     ])
       .then(([nyanstalldaData, categoriesData]) => {
         setNyanstallda(nyanstalldaData);
         setCategories(categoriesData);
+        if (categoriesData.length > 0 && !selectedCategoryId) {
+          setSelectedCategoryId(categoriesData[0].id);
+        }
         const selfOnly = roles.includes("NYANSTALLD") && !roles.includes("MENTOR") && !roles.includes("ARBETSLEDARE") && !roles.includes("ADMIN");
         if (selfOnly && currentUserId) {
           setSelectedNyanstalldId(currentUserId);
@@ -162,13 +344,6 @@ export default function MentorPage() {
   );
 
   const selectedNyanstalld = nyanstallda.find((n) => n.id === selectedNyanstalldId);
-  const filteredTasks = categoryFilter
-    ? allTasks.filter((t) => t.categoryId === categoryFilter)
-    : allTasks;
-  const tasksByCategory = categories.map((cat) => ({
-    ...cat,
-    tasks: filteredTasks.filter((t) => t.categoryId === cat.id),
-  })).filter((g) => g.tasks.length > 0);
 
   const getProgress = (taskId: string): TaskProgressState =>
     progress[taskId] ?? { isVisad: false, isKan: false, notes: "" };
@@ -188,9 +363,6 @@ export default function MentorPage() {
     }));
     if ("isVisad" in upd || "isKan" in upd) saveProgress(taskId, upd);
   };
-
-  const isSystemReady = (systemName: string) =>
-    selectedNyanstalld?.systems.find((s) => s.systemName === systemName)?.status === "READY";
 
   if (loading) {
     return (
@@ -213,26 +385,100 @@ export default function MentorPage() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl lg:text-3xl">
-            {selfOnlyView ? "Min onboarding" : "Mentorvy"}
-        </h1>
-        <p className="mt-1 text-sm text-gray-600 sm:text-base">
+    <div className="flex flex-col gap-4 sm:gap-6 lg:flex-row lg:items-start">
+      {/* Sidomeny: kategorier (desktop) */}
+      <aside className="w-full shrink-0 lg:w-56 lg:sticky lg:top-24">
+        <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-md lg:p-2">
+          <h2 className="mb-2 hidden text-xs font-semibold uppercase tracking-wider text-gray-500 sm:block lg:mb-3">
+            Kategorier
+          </h2>
+          {/* Mobil: dropdown */}
+          <div className="lg:hidden">
+            <select
+              value={selectedCategoryId}
+              onChange={(e) => setSelectedCategoryId(e.target.value)}
+              className="w-full min-h-[48px] rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
+            >
+              <option value="">Alla moment</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {/* Desktop: lista med reorder */}
+          <nav className="hidden lg:block" aria-label="Kategorier">
+            <button
+              type="button"
+              onClick={() => setSelectedCategoryId("")}
+              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${
+                !selectedCategoryId ? "bg-otic-primary/10 text-otic-primary" : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <ListChecks className="h-4 w-4 shrink-0" aria-hidden /> Alla moment
+            </button>
+            {categories.map((cat, idx) => (
+              <div key={cat.id} className="flex items-center gap-0.5">
+                {canReorder && (
+                  <div className="flex flex-col">
+                    <button
+                      type="button"
+                      onClick={() => moveCategory(idx, -1)}
+                      disabled={idx === 0}
+                      className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30"
+                      aria-label={`Flytta ${cat.name} upp`}
+                    >
+                      <ChevronUp className="h-4 w-4" aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveCategory(idx, 1)}
+                      disabled={idx === categories.length - 1}
+                      className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30"
+                      aria-label={`Flytta ${cat.name} ned`}
+                    >
+                      <ChevronDown className="h-4 w-4" aria-hidden />
+                    </button>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategoryId(cat.id)}
+                  className={`flex flex-1 items-center rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${
+                    selectedCategoryId === cat.id ? "bg-otic-primary/10 text-otic-primary" : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  {cat.name}
+                  <span className="ml-1.5 text-xs text-gray-400">({cat.tasks.length})</span>
+                </button>
+              </div>
+            ))}
+          </nav>
+        </div>
+      </aside>
+
+      {/* Huvudinnehåll */}
+      <main className="min-w-0 flex-1 space-y-4">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl lg:text-3xl">
+            {selfOnlyView ? "Onboarding" : "Mentorvy"}
+          </h1>
+          <p className="mt-1 text-sm text-gray-600 sm:text-base">
             {selfOnlyView
               ? "Dina moment, länkar och status i onboarding."
-              : "Checklistor, Genomgången/Behärskar och anteckningar per nyanställd"}
-        </p>
-        <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-            {allTasks.length} moment i {categories.length} kategorier. Använd filtret för att begränsa vy.
-        </p>
-      </div>
+              : "Checklistor, Genomgången/Behärskar och anteckningar per nyanställd."}
+          </p>
+          <p className="mt-1 text-xs text-gray-500 sm:text-sm">
+            {allTasks.length} moment i {categories.length} kategorier.
+          </p>
+        </div>
 
-      {/* Välj nyanställd */}
+        {/* Välj nyanställd */}
         {!selfOnlyView && (
           <section className="card-section">
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500 sm:text-sm">
-              Nyanställd
+            <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500 sm:text-sm">
+              <Users className="h-4 w-4" aria-hidden /> Nyanställd
             </h2>
             {nyanstallda.length === 0 ? (
               <p className="text-gray-500">Inga nyanställda.</p>
@@ -257,80 +503,73 @@ export default function MentorPage() {
           </section>
         )}
 
-      {selectedNyanstalld && (
-        <section className="card-section">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500 sm:text-sm">
-            IT-system (status)
+        {selectedNyanstalld && (
+          <section className="card-section">
+            <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500 sm:text-sm">
+              <Monitor className="h-4 w-4" aria-hidden /> IT-system (status)
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {selectedNyanstalld.systems.map((s) => (
+                <div
+                  key={s.systemName}
+                  className="flex items-center gap-1.5 rounded-lg bg-gray-50/80 px-2.5 py-1.5 shadow-sm"
+                >
+                  <span className="text-sm font-medium text-gray-800">{s.systemName}</span>
+                  <SystemStatusBadge status={s.status} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {loadingProgress && (
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-otic-primary border-t-transparent" aria-hidden />
+        )}
+
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500 sm:text-sm">
+            <ListChecks className="h-4 w-4" aria-hidden />
+            {currentCategory ? currentCategory.name : "Alla moment"}
           </h2>
-          <div className="flex flex-wrap gap-2">
-            {selectedNyanstalld.systems.map((s) => (
-              <div
-                key={s.systemName}
-                className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5"
-              >
-                <span className="text-sm font-medium text-gray-800">{s.systemName}</span>
-                <SystemStatusBadge status={s.status} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 sm:text-sm">
-          Filtrera moment
-        </h2>
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="w-full min-h-[48px] max-w-sm rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-700 shadow-sm focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20 sm:py-2.5"
-        >
-          <option value="">Alla kategorier</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </section>
-
-      {loadingProgress && (
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-otic-primary border-t-transparent" aria-hidden />
-      )}
-
-      <section className="space-y-4 sm:space-y-6">
-        <h2 className="text-base font-semibold text-gray-900 sm:text-lg">Moment</h2>
-        {tasksByCategory.length === 0 ? (
-          <p className="text-gray-500">Inga moment. Kör db:seed för att lägga in uppgifter.</p>
-        ) : (
-          tasksByCategory.map((group) => (
-            <div key={group.id} className="space-y-3">
-              <h3 className="text-base font-medium text-otic-primary">{group.name}</h3>
-              <ul className="space-y-3">
-                {group.tasks.map((task) => {
-                  const prog = getProgress(task.id);
-                  const systemLock = task.requiredSystemName && !isSystemReady(task.requiredSystemName);
-                  const readOnly = !canEdit || !!systemLock;
-                  return (
-                    <li
-                      key={task.id}
-                      className={`card-touch overflow-hidden ${systemLock ? "opacity-75" : ""}`}
+          {currentCategory && tasksForView.length === 0 ? (
+            <p className="text-gray-500">Inga moment i denna kategori. Välj en annan i sidomenyn.</p>
+          ) : currentCategory ? (
+            <ul className="space-y-3">
+              {tasksForView.map((task, taskIndex) => {
+                const prog = getProgress(task.id);
+                const readOnly = !canEdit;
+                const isDragging = draggedTaskId === task.id;
+                const isDropTarget = dragOverTaskIndex === taskIndex;
+                return (
+                  <li
+                    key={task.id}
+                    className={`flex gap-2 transition-colors ${isDropTarget ? "rounded-lg ring-2 ring-otic-primary/50 ring-offset-2" : ""}`}
+                    onDragOver={canReorder ? (e) => handleTaskDragOver(e, currentCategory.id, taskIndex) : undefined}
+                    onDragLeave={canReorder ? handleTaskDragLeave : undefined}
+                    onDrop={canReorder ? (e) => handleTaskDrop(e, currentCategory.id, taskIndex) : undefined}
+                  >
+                    {canReorder && (
+                      <div
+                        draggable
+                        onDragStart={(e) => handleTaskDragStart(e, task.id, currentCategory.id, taskIndex)}
+                        onDragEnd={handleTaskDragEnd}
+                        className="flex cursor-grab touch-none flex-col justify-center rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 active:cursor-grabbing"
+                        role="button"
+                        aria-label={`Dra för att flytta ${task.title}`}
+                      >
+                        <GripVertical className="h-5 w-5" aria-hidden />
+                      </div>
+                    )}
+                    <div
+                      className={`card-touch min-w-0 flex-1 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm ${isDragging ? "opacity-50" : ""}`}
                     >
                       <div className="p-4 sm:p-5">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <p className="font-medium text-gray-900">{task.title}</p>
-                          {task.requiredSystemName && (
-                            <span className="text-xs text-gray-500">
-                              Kräver: {task.requiredSystemName}
-                              {systemLock && " (ej klar)"}
-                            </span>
-                          )}
-                        </div>
+                        <p className="font-semibold text-gray-900">{task.title}</p>
 
                         {(task.subTasks?.length ?? 0) > 0 && (
-                          <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50/80 p-3">
-                            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                              Länkar till rutiner (SharePoint)
+                          <div className="mt-3 rounded-lg bg-gray-50/80 p-3 shadow-sm">
+                            <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                              <Link2 className="h-3.5 w-3.5" aria-hidden /> Länkar till rutiner (SharePoint)
                             </p>
                             <ul className="space-y-1.5">
                               {task.subTasks!.map((st) => (
@@ -361,9 +600,9 @@ export default function MentorPage() {
                               checked={prog.isVisad}
                               disabled={readOnly}
                               onChange={(e) => setTaskProgress(task.id, { isVisad: e.target.checked })}
-                              className="h-5 w-5 shrink-0 rounded border-gray-300 text-otic-primary focus:ring-otic-primary"
+                              className="h-5 w-5 shrink-0 rounded-md border-2 border-gray-300 text-otic-primary focus:ring-2 focus:ring-otic-primary focus:ring-offset-0"
                             />
-                            <span className="font-medium text-gray-700">Genomgången</span>
+                            <span className="text-sm font-medium uppercase tracking-wider text-gray-500">Genomgången</span>
                           </label>
                           <label className="flex min-h-[48px] cursor-pointer items-center gap-3 touch-manipulation">
                             <input
@@ -371,9 +610,9 @@ export default function MentorPage() {
                               checked={prog.isKan}
                               disabled={readOnly}
                               onChange={(e) => setTaskProgress(task.id, { isKan: e.target.checked })}
-                              className="h-5 w-5 shrink-0 rounded border-gray-300 text-otic-primary focus:ring-otic-primary"
+                              className="h-5 w-5 shrink-0 rounded-md border-2 border-gray-300 text-otic-primary focus:ring-2 focus:ring-otic-primary focus:ring-offset-0"
                             />
-                            <span className="font-medium text-gray-700">Behärskar</span>
+                            <span className="text-sm font-medium uppercase tracking-wider text-gray-500">Behärskar</span>
                           </label>
                         </div>
 
@@ -400,14 +639,130 @@ export default function MentorPage() {
                           </div>
                         )}
                       </div>
-                    </li>
-                  );
-                })}
-              </ul>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="space-y-6">
+              {categories.map((cat) => (
+                <div key={cat.id}>
+                  <h3 className="mb-2 text-sm font-semibold text-gray-700">{cat.name}</h3>
+                  <ul className="space-y-3">
+                    {cat.tasks.map((task, taskIndex) => {
+                      const prog = getProgress(task.id);
+                      const readOnly = !canEdit;
+                      const isDragging = draggedTaskId === task.id;
+                      const isDropTarget =
+                        dragOverTarget?.categoryId === cat.id && dragOverTarget?.index === taskIndex;
+                      return (
+                        <li
+                          key={task.id}
+                          className={`flex gap-2 transition-colors ${isDropTarget ? "rounded-lg ring-2 ring-otic-primary/50 ring-offset-2" : ""}`}
+                          onDragOver={canReorder ? (e) => handleTaskDragOver(e, cat.id, taskIndex) : undefined}
+                          onDragLeave={canReorder ? handleTaskDragLeave : undefined}
+                          onDrop={canReorder ? (e) => handleTaskDrop(e, cat.id, taskIndex) : undefined}
+                        >
+                          {canReorder && (
+                            <div
+                              draggable
+                              onDragStart={(e) => handleTaskDragStart(e, task.id, cat.id, taskIndex)}
+                              onDragEnd={handleTaskDragEnd}
+                              className="flex cursor-grab touch-none flex-col justify-center rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 active:cursor-grabbing"
+                              role="button"
+                              aria-label={`Dra för att flytta ${task.title}`}
+                            >
+                              <GripVertical className="h-5 w-5" aria-hidden />
+                            </div>
+                          )}
+                          <div
+                            className={`card-touch min-w-0 flex-1 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm ${isDragging ? "opacity-50" : ""}`}
+                          >
+                            <div className="p-4 sm:p-5">
+                              <p className="font-semibold text-gray-900">{task.title}</p>
+                              {(task.subTasks?.length ?? 0) > 0 && (
+                                <div className="mt-3 rounded-lg bg-gray-50/80 p-3 shadow-sm">
+                                  <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                    <Link2 className="h-3.5 w-3.5" aria-hidden /> Länkar till rutiner (SharePoint)
+                                  </p>
+                                  <ul className="space-y-1.5">
+                                    {task.subTasks!.map((st) => (
+                                      <li key={st.id}>
+                                        {st.url ? (
+                                          <a
+                                            href={st.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-2 text-sm text-otic-primary hover:underline"
+                                          >
+                                            <span className="font-medium">{st.title}</span>
+                                            <span aria-hidden>↗</span>
+                                          </a>
+                                        ) : (
+                                          <span className="text-sm text-gray-600">{st.title}</span>
+                                        )}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              <div className="mt-4 flex flex-wrap gap-6">
+                                <label className="flex min-h-[48px] cursor-pointer items-center gap-3 touch-manipulation">
+                                  <input
+                                    type="checkbox"
+                                    checked={prog.isVisad}
+                                    disabled={readOnly}
+                                    onChange={(e) => setTaskProgress(task.id, { isVisad: e.target.checked })}
+                                    className="h-5 w-5 shrink-0 rounded-md border-2 border-gray-300 text-otic-primary focus:ring-2 focus:ring-otic-primary focus:ring-offset-0"
+                                  />
+                                  <span className="text-sm font-medium uppercase tracking-wider text-gray-500">Genomgången</span>
+                                </label>
+                                <label className="flex min-h-[48px] cursor-pointer items-center gap-3 touch-manipulation">
+                                  <input
+                                    type="checkbox"
+                                    checked={prog.isKan}
+                                    disabled={readOnly}
+                                    onChange={(e) => setTaskProgress(task.id, { isKan: e.target.checked })}
+                                    className="h-5 w-5 shrink-0 rounded-md border-2 border-gray-300 text-otic-primary focus:ring-2 focus:ring-otic-primary focus:ring-offset-0"
+                                  />
+                                  <span className="text-sm font-medium uppercase tracking-wider text-gray-500">Behärskar</span>
+                                </label>
+                              </div>
+                              {!selfOnlyView && (
+                                <div className="mt-3">
+                                  <label htmlFor={`notes-all-${task.id}`} className="sr-only">
+                                    Anteckningar för {task.title}
+                                  </label>
+                                  <textarea
+                                    id={`notes-all-${task.id}`}
+                                    placeholder="Anteckningar (t.ex. behöver öva mer…)"
+                                    value={prog.notes}
+                                    disabled={readOnly}
+                                    onChange={(e) =>
+                                      setProgress((prev) => ({
+                                        ...prev,
+                                        [task.id]: { ...getProgress(task.id), notes: e.target.value },
+                                      }))
+                                    }
+                                    onBlur={(e) => saveProgress(task.id, { notes: e.target.value })}
+                                    rows={2}
+                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20 disabled:bg-gray-50"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
             </div>
-          ))
-        )}
-      </section>
+          )}
+        </section>
+      </main>
     </div>
   );
 }

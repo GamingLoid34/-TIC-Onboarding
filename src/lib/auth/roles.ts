@@ -37,18 +37,23 @@ export function getPrimaryRole(roles: AppRole[]): AppRole {
 
 export function buildNavItems(roles: AppRole[]): NavItem[] {
   const items: NavItem[] = [];
-  const isAdmin = roles.includes("ADMIN");
+  const canSeeMentor =
+    roles.includes("NYANSTALLD") ||
+    roles.includes("MENTOR") ||
+    roles.includes("ARBETSLEDARE") ||
+    roles.includes("ADMIN");
 
-  if (roles.includes("NYANSTALLD") || isAdmin) {
-    items.push({ href: "/mentor", label: "Min onboarding" });
+  if (canSeeMentor) {
+    items.push({ href: "/mentor", label: "Onboarding" });
   }
-  if (roles.includes("MENTOR") || roles.includes("ARBETSLEDARE") || isAdmin) {
+  if (
+    roles.includes("MENTOR") ||
+    roles.includes("ARBETSLEDARE") ||
+    roles.includes("ADMIN")
+  ) {
     items.push({ href: "/dashboard", label: "Dashboard" });
-    items.push({ href: "/mentor", label: "Mentor" });
   }
-  if (roles.includes("ADMIN")) {
-    items.push({ href: "/admin/users", label: "Användare" });
-  }
+  // Användare nås via Inställningar → Gå till admin (tas inte med i huvudnav)
 
   const deduped = new Map<string, NavItem>();
   items.forEach((item) => {

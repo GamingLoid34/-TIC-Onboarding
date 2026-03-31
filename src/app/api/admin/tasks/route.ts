@@ -9,7 +9,7 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
     }
-    if (!hasAnyRole(user.roles, ["ADMIN"])) {
+    if (!hasAnyRole(user.roles, ["ADMIN", "MENTOR"])) {
       return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
     }
 
@@ -42,12 +42,12 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
     }
-    if (!hasAnyRole(user.roles, ["ADMIN"])) {
+    if (!hasAnyRole(user.roles, ["ADMIN", "MENTOR"])) {
       return NextResponse.json({ error: "Ingen behörighet" }, { status: 403 });
     }
 
     const body = await request.json();
-    const { title, description, categoryId, requiredSystemName, sortOrder } = body;
+    const { title, description, categoryId, sortOrder } = body;
 
     if (!title || !categoryId) {
       return NextResponse.json(
@@ -61,7 +61,6 @@ export async function POST(request: NextRequest) {
         title: String(title).trim(),
         description: body.description != null ? String(description).trim() || undefined : undefined,
         categoryId: String(categoryId),
-        requiredSystemName: body.requiredSystemName != null ? String(requiredSystemName).trim() || null : null,
         sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
       },
       include: {

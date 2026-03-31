@@ -33,7 +33,6 @@ export async function GET() {
         id: t.id,
         title: t.title,
         categoryId: t.categoryId,
-        requiredSystemName: t.requiredSystemName,
         sortOrder: t.sortOrder,
         subTasks: t.subTasks.map((s) => ({
           id: s.id,

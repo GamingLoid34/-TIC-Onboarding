@@ -42,7 +42,7 @@ export async function GET() {
 
     // 2) Hämta app-profiler (Prisma). Om DB-schemat saknas ska admin ändå kunna se Auth-användarna.
     let prismaUsers:
-      | Array<{ id: string; name: string; email: string; role: AppRole }>
+      | Array<{ id: string; name: string; email: string; role: AppRole; startDate?: Date | null }>
       | null = null;
     try {
       prismaUsers = await prisma.user.findMany({
@@ -77,6 +77,7 @@ export async function GET() {
           roles: [dbUser.role],
           hasProfile: true,
           idMismatch: !!dbUserByEmail && !dbUserById,
+          startDate: dbUser.startDate ? dbUser.startDate.toISOString().slice(0, 10) : null,
         };
       }
 
@@ -87,6 +88,7 @@ export async function GET() {
         role: "NYANSTALLD" as const,
         roles: ["NYANSTALLD"] as const,
         hasProfile: false,
+        startDate: null,
       };
     });
 
@@ -100,6 +102,7 @@ export async function GET() {
         name: u.name,
         email: u.email,
         role: u.role,
+        startDate: u.startDate ? u.startDate.toISOString().slice(0, 10) : null,
         roles: [u.role],
         hasProfile: true,
       }));

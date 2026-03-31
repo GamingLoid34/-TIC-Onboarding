@@ -21,7 +21,6 @@ interface Task {
   title: string;
   description: string | null;
   categoryId: string;
-  requiredSystemName: string | null;
   sortOrder: number;
   category: Category;
   subTasks: SubTask[];
@@ -37,7 +36,6 @@ export default function AdminTasksPage() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskCategoryId, setNewTaskCategoryId] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
-  const [newTaskSystemName, setNewTaskSystemName] = useState("");
   const [submittingTask, setSubmittingTask] = useState(false);
 
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
@@ -49,6 +47,7 @@ export default function AdminTasksPage() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editTaskTitle, setEditTaskTitle] = useState("");
   const [editTaskDescription, setEditTaskDescription] = useState("");
+  const [editTaskCategoryId, setEditTaskCategoryId] = useState("");
   const [editingSubTaskId, setEditingSubTaskId] = useState<string | null>(null);
   const [editSubTaskTitle, setEditSubTaskTitle] = useState("");
   const [editSubTaskUrl, setEditSubTaskUrl] = useState("");
@@ -77,9 +76,9 @@ export default function AdminTasksPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { roles?: string[]; role?: string } | null) => {
         const roles = Array.isArray(data?.roles) ? data.roles : data?.role ? [data.role] : [];
-        const isAdmin = roles.includes("ADMIN");
-        setAuthorized(isAdmin);
-        if (isAdmin) {
+        const canManageTasks = roles.includes("ADMIN") || roles.includes("MENTOR");
+        setAuthorized(canManageTasks);
+        if (canManageTasks) {
           fetchData();
         } else {
           setLoading(false);
@@ -103,7 +102,6 @@ export default function AdminTasksPage() {
           title: newTaskTitle.trim(),
           categoryId: newTaskCategoryId,
           description: newTaskDescription.trim() || undefined,
-          requiredSystemName: newTaskSystemName.trim() || undefined,
           sortOrder: 0,
         }),
       });
@@ -115,7 +113,6 @@ export default function AdminTasksPage() {
       setTasks((prev) => [...prev, created].sort((a, b) => a.category.sortOrder - b.category.sortOrder || a.sortOrder - b.sortOrder));
       setNewTaskTitle("");
       setNewTaskDescription("");
-      setNewTaskSystemName("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Kunde inte skapa uppgift");
     } finally {
@@ -124,7 +121,7 @@ export default function AdminTasksPage() {
   };
 
   const handleUpdateTask = async (taskId: string) => {
-    if (!editTaskTitle.trim()) return;
+    if (!editTaskTitle.trim() || !editTaskCategoryId) return;
     try {
       const res = await fetch(`/api/admin/tasks/${taskId}`, {
         method: "PUT",
@@ -132,6 +129,7 @@ export default function AdminTasksPage() {
         body: JSON.stringify({
           title: editTaskTitle.trim(),
           description: editTaskDescription.trim() || null,
+          categoryId: editTaskCategoryId,
         }),
       });
       if (!res.ok) throw new Error("Kunde inte uppdatera");
@@ -275,7 +273,7 @@ export default function AdminTasksPage() {
       )}
 
       {/* Formulär: Ny uppgift */}
-      <section className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm sm:p-6">
+      <section className="card-section">
         <h2 className="mb-4 text-base font-semibold text-gray-900 sm:text-lg">Lägg till uppgift</h2>
         <form onSubmit={handleCreateTask} className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
           <div className="min-w-0 w-full flex-1 sm:max-w-xs">
@@ -304,17 +302,6 @@ export default function AdminTasksPage() {
               placeholder="Titel på uppgiften"
               className="w-full min-h-[48px] rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
               required
-            />
-          </div>
-          <div className="min-w-0 w-full flex-1 sm:max-w-xs">
-            <label htmlFor="new-task-system" className="mb-1 block text-sm font-medium text-gray-700">Kräver system (valfritt)</label>
-            <input
-              id="new-task-system"
-              type="text"
-              value={newTaskSystemName}
-              onChange={(e) => setNewTaskSystemName(e.target.value)}
-              placeholder="t.ex. TIMS, OCA"
-              className="w-full min-h-[48px] rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
             />
           </div>
           <div className="flex gap-2">
@@ -352,18 +339,33 @@ export default function AdminTasksPage() {
             {tasks.map((task) => (
               <li
                 key={task.id}
-                className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden"
+                className="rounded-xl bg-white shadow-md overflow-hidden"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2 p-4">
                   <div className="min-w-0 flex-1">
                     {editingTaskId === task.id ? (
                       <div className="flex flex-col gap-2">
-                        <input
-                          type="text"
-                          value={editTaskTitle}
-                          onChange={(e) => setEditTaskTitle(e.target.value)}
-                          className="rounded border border-gray-300 px-2 py-1"
-                        />
+                        <div>
+                          <label className="mb-0.5 block text-xs font-medium text-gray-600">Kategori</label>
+                          <select
+                            value={editTaskCategoryId}
+                            onChange={(e) => setEditTaskCategoryId(e.target.value)}
+                            className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                          >
+                            {categories.map((c) => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-0.5 block text-xs font-medium text-gray-600">Titel</label>
+                          <input
+                            type="text"
+                            value={editTaskTitle}
+                            onChange={(e) => setEditTaskTitle(e.target.value)}
+                            className="w-full rounded border border-gray-300 px-2 py-1"
+                          />
+                        </div>
                         <textarea
                           value={editTaskDescription}
                           onChange={(e) => setEditTaskDescription(e.target.value)}
@@ -391,12 +393,7 @@ export default function AdminTasksPage() {
                     ) : (
                       <>
                         <h3 className="font-medium text-gray-900">{task.title}</h3>
-                        <p className="text-sm text-gray-500">
-                          {task.category.name}
-                          {task.requiredSystemName && (
-                            <span className="ml-2">· Kräver: {task.requiredSystemName}</span>
-                          )}
-                        </p>
+                        <p className="text-sm text-gray-500">{task.category.name}</p>
                       </>
                     )}
                   </div>
@@ -417,6 +414,7 @@ export default function AdminTasksPage() {
                           setEditingTaskId(task.id);
                           setEditTaskTitle(task.title);
                           setEditTaskDescription(task.description || "");
+                          setEditTaskCategoryId(task.categoryId);
                         }}
                         className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
                       >

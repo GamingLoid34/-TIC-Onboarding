@@ -9,6 +9,7 @@ interface User {
   email: string;
   role: AppRole;
   hasProfile?: boolean;
+  startDate?: string | null;
 }
 
 export default function AdminUsersPage() {
@@ -24,15 +25,11 @@ export default function AdminUsersPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
   const [editRole, setEditRole] = useState<AppRole>("NYANSTALLD");
   const [editPassword, setEditPassword] = useState("");
-
-  const [resetConfirm, setResetConfirm] = useState(false);
-  const [resetEmail, setResetEmail] = useState("");
-  const [resetPassword, setResetPassword] = useState("");
-  const [resetName, setResetName] = useState("");
-  const [resetSubmitting, setResetSubmitting] = useState(false);
-  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -100,14 +97,21 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleUpdateRole = async (id: string) => {
+  const handleUpdateUser = async (id: string) => {
+    if (!editName.trim() || !editEmail.trim()) {
+      setError("Namn och e-post får inte vara tomma.");
+      return;
+    }
     setError(null);
     try {
       const res = await fetch(`/api/admin/users/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name: editName.trim(),
+          email: editEmail.trim().toLowerCase(),
           role: editRole,
+          startDate: editStartDate.trim() || null,
           ...(editPassword ? { password: editPassword } : {}),
         }),
       });
@@ -118,46 +122,6 @@ export default function AdminUsersPage() {
       setEditPassword("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Kunde inte uppdatera");
-    }
-  };
-
-  const handleResetAll = async () => {
-    if (!resetConfirm) {
-      setError("Bocka i att du förstår att alla användare tas bort.");
-      return;
-    }
-    setError(null);
-    setResetSuccess(null);
-    setResetSubmitting(true);
-    try {
-      const body: { email?: string; password?: string; name?: string } = {};
-      if (resetEmail.trim() && resetPassword.length >= 6 && resetName.trim()) {
-        body.email = resetEmail.trim().toLowerCase();
-        body.password = resetPassword;
-        body.name = resetName.trim();
-      }
-      const res = await fetch("/api/admin/reset-users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Kunde inte rensa");
-      setUsers([]);
-      setResetConfirm(false);
-      setResetEmail("");
-      setResetPassword("");
-      setResetName("");
-      const msg = data.message ?? "Alla användare borttagna.";
-      setResetSuccess(
-        body.email
-          ? msg + " Logga ut och logga in igen med " + body.email + "."
-          : msg
-      );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Kunde inte rensa användare");
-    } finally {
-      setResetSubmitting(false);
     }
   };
 
@@ -280,63 +244,6 @@ export default function AdminUsersPage() {
         </form>
       </section>
 
-      <section className="card-section border-amber-200 bg-amber-50/50">
-        <h2 className="mb-2 text-base font-semibold text-gray-900 sm:text-lg">
-          Rensa alla användare och starta om
-        </h2>
-        <p className="mb-4 text-sm text-gray-600">
-          Tar bort alla användare i appen och i inloggningen (Supabase Auth). Använd bara om ni vill börja helt från början.
-          Kategorier och moment (tasks) påverkas inte.
-        </p>
-        {resetSuccess && (
-          <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-            {resetSuccess}
-          </div>
-        )}
-        <label className="mb-3 flex items-start gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={resetConfirm}
-            onChange={(e) => setResetConfirm(e.target.checked)}
-            className="mt-0.5 rounded border-gray-300 text-otic-primary focus:ring-otic-primary"
-          />
-          <span>Jag förstår att alla inloggningar och användarprofiler tas bort. Jag kan inte ångra detta.</span>
-        </label>
-        <p className="mb-3 text-sm font-medium text-gray-700">Valfritt: skapa första användaren direkt efter rensning (Admin)</p>
-        <div className="mb-4 flex flex-wrap gap-3">
-          <input
-            type="text"
-            value={resetName}
-            onChange={(e) => setResetName(e.target.value)}
-            placeholder="Namn"
-            className="min-h-[40px] w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm sm:max-w-[160px]"
-          />
-          <input
-            type="email"
-            value={resetEmail}
-            onChange={(e) => setResetEmail(e.target.value)}
-            placeholder="E-post"
-            className="min-h-[40px] w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm sm:max-w-[200px]"
-          />
-          <input
-            type="password"
-            value={resetPassword}
-            onChange={(e) => setResetPassword(e.target.value)}
-            placeholder="Lösenord (minst 6 tecken)"
-            minLength={6}
-            className="min-h-[40px] w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm sm:max-w-[180px]"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={handleResetAll}
-          disabled={!resetConfirm || resetSubmitting}
-          className="min-h-[44px] rounded-xl border border-red-300 bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
-        >
-          {resetSubmitting ? "Rensar…" : "Rensa alla användare och starta om"}
-        </button>
-      </section>
-
       <section className="card-section">
         <h2 className="mb-4 text-base font-semibold text-gray-900 sm:text-lg">Alla användare</h2>
         {users.length === 0 ? (
@@ -346,20 +253,48 @@ export default function AdminUsersPage() {
             {users.map((u) => (
               <li
                 key={u.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200/80 bg-gray-50/50 p-4"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-md"
               >
                 <div>
                   <p className="font-medium text-gray-900">{u.name}</p>
                   <p className="text-sm text-gray-500">{u.email}</p>
+                  {u.startDate && (
+                    <p className="text-xs text-gray-400">Start: {u.startDate}</p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {editingId === u.id ? (
                     <>
                       <div className="flex flex-wrap items-center gap-3">
+                        <div className="min-w-[160px]">
+                          <label className="mb-1 block text-sm font-medium text-gray-700">Namn</label>
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="w-full min-h-[40px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
+                          />
+                        </div>
+                        <div className="min-w-[200px]">
+                          <label className="mb-1 block text-sm font-medium text-gray-700">E-post</label>
+                          <input
+                            type="email"
+                            value={editEmail}
+                            onChange={(e) => setEditEmail(e.target.value)}
+                            className="w-full min-h-[40px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
+                          />
+                        </div>
+                        <div className="min-w-[140px]">
+                          <label className="mb-1 block text-sm font-medium text-gray-700">Startdatum</label>
+                          <input
+                            type="date"
+                            value={editStartDate}
+                            onChange={(e) => setEditStartDate(e.target.value)}
+                            className="w-full min-h-[40px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
+                          />
+                        </div>
                         <div className="min-w-[180px]">
-                          <label className="mb-1 block text-sm font-medium text-gray-700">
-                            Roll
-                          </label>
+                          <label className="mb-1 block text-sm font-medium text-gray-700">Roll</label>
                           <select
                             value={editRole}
                             onChange={(e) => setEditRole(e.target.value as AppRole)}
@@ -372,24 +307,22 @@ export default function AdminUsersPage() {
                             ))}
                           </select>
                         </div>
-                      </div>
-                      <div className="min-w-[220px]">
-                        <label className="mb-1 block text-sm font-medium text-gray-700">
-                          Nytt lösenord (valfritt)
-                        </label>
-                        <input
-                          type="password"
-                          value={editPassword}
-                          onChange={(e) => setEditPassword(e.target.value)}
-                          placeholder="Minst 6 tecken"
-                          minLength={6}
-                          autoComplete="new-password"
-                          className="w-full min-h-[40px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
-                        />
+                        <div className="min-w-[220px]">
+                          <label className="mb-1 block text-sm font-medium text-gray-700">Nytt lösenord (valfritt)</label>
+                          <input
+                            type="password"
+                            value={editPassword}
+                            onChange={(e) => setEditPassword(e.target.value)}
+                            placeholder="Minst 6 tecken"
+                            minLength={6}
+                            autoComplete="new-password"
+                            className="w-full min-h-[40px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-otic-primary focus:outline-none focus:ring-2 focus:ring-otic-primary/20"
+                          />
+                        </div>
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleUpdateRole(u.id)}
+                        onClick={() => handleUpdateUser(u.id)}
                         className="min-h-[40px] rounded-lg bg-otic-primary px-3 py-2 text-sm font-medium text-white touch-manipulation"
                       >
                         Spara
@@ -421,6 +354,9 @@ export default function AdminUsersPage() {
                         type="button"
                         onClick={() => {
                           setEditingId(u.id);
+                          setEditName(u.name);
+                          setEditEmail(u.email);
+                          setEditStartDate(u.startDate ?? "");
                           setEditRole(u.role);
                           setEditPassword("");
                         }}

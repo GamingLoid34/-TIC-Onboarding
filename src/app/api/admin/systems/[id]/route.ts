@@ -71,10 +71,6 @@ export async function PATCH(
           where: { systemName: existing.name },
           data: { systemName: newName },
         });
-        await tx.task.updateMany({
-          where: { requiredSystemName: existing.name },
-          data: { requiredSystemName: newName },
-        });
       }
       return updated;
     });
@@ -112,10 +108,6 @@ export async function DELETE(
 
     await prisma.$transaction(async (tx) => {
       await tx.systemChecklist.deleteMany({ where: { systemName: existing.name } });
-      await tx.task.updateMany({
-        where: { requiredSystemName: existing.name },
-        data: { requiredSystemName: null },
-      });
       await tx.system.delete({ where: { id } });
     });
 

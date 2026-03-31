@@ -9,13 +9,13 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Östgötatrafiken-inspirerad palett + status
+        // Modern blå accentpalett
         otic: {
-          primary: "#006B4A",
-          primaryDark: "#004d36",
-          secondary: "#2C5F2D",
-          accent: "#97BE5A",
-          surface: "#f0f4ef",
+          primary: "#2563eb",
+          primaryDark: "#1d4ed8",
+          secondary: "#3b82f6",
+          accent: "#60a5fa",
+          surface: "#f0f9ff",
         },
         status: {
           red: "#DC2626",

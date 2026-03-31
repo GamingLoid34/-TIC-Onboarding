@@ -52,7 +52,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { name, email, role, roles: rolesBody, password } = body;
+    const { name, email, role, roles: rolesBody, password, startDate: startDateBody } = body;
 
     const validRoles: AppRole[] = ["ADMIN", "ARBETSLEDARE", "MENTOR", "NYANSTALLD"];
     const nextRole =
@@ -273,6 +273,16 @@ export async function PATCH(
       return NextResponse.json({ success: true, hasProfile: false });
     }
 
+    let startDateValue: Date | null | undefined = undefined;
+    if (startDateBody !== undefined) {
+      if (startDateBody === null || startDateBody === "") {
+        startDateValue = null;
+      } else {
+        const parsed = new Date(String(startDateBody));
+        if (!Number.isNaN(parsed.getTime())) startDateValue = parsed;
+      }
+    }
+
     try {
       const user = await prisma.user.update({
         where: { id },
@@ -282,6 +292,7 @@ export async function PATCH(
           ...(nextRole && {
             role: nextRole,
           }),
+          ...(startDateValue !== undefined && { startDate: startDateValue }),
         },
       });
 
@@ -292,6 +303,7 @@ export async function PATCH(
         role: user.role,
         roles: [user.role],
         hasProfile: true,
+        startDate: user.startDate ? user.startDate.toISOString().slice(0, 10) : null,
       });
     } catch (updateErr) {
       const msg =
